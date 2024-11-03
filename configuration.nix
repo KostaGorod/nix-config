@@ -17,17 +17,21 @@
 
   };
   nixpkgs.config.allowUnfree = lib.mkForce true; # force allow unfree (if unfree is false by default)
-  
+
+  # Bootloader.
   # Use the systemd-boot EFI boot loader.
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
 
-  # TODO: set [main] dns=dnsmasq (instead of internal)
   networking.hostName = "rocinante"; # hostname.
+  
   networking.networkmanager.enable = true;  # Easiest to use and most distros use this by default.
-  # networking.interfaces."enp0s13f0u3u1".useDHCP = true; # Connect to wired connection from my Dock-Station
+  # Unlock Integrated Modem
   networking.networkmanager.fccUnlockScripts = [ {id = "1eac:1001"; path = "${pkgs.modemmanager}/share/ModemManager/fcc-unlock.available.d/1eac:1001";} ];
-  networking.timeServers = [ "timeserver.iix.net.il" ];
+  networking.timeServers = [ "timeserver.iix.net.il" ]; # Items in list seperated by space e.g.: [ "time.cloudflare.com" "time.example.com" ];
+  services.dnsmasq.enable = true;
+  
+  # TODO: set [main] dns=dnsmasq (instead of internal)
   # networking.dhcpcd.extraConfig = ''
   # interface enp*
   # metric 100
@@ -39,27 +43,31 @@
   # metric 300
     
   # '';
+
+  # Virtualization
   virtualisation.docker.enable = true;
   virtualisation.docker.package = pkgs.docker_26;
   
     
-  # enable fwupdmgr
+  # fwupdmgr for firmwares updates
   services.fwupd.enable = true;
   
-  # enable bluetooth 
+  # bluetooth 
   hardware.bluetooth.enable = true;
 
-  # enable logitech unify & solaar (logitech control interface)
+  # Logitech unify & solaar (logitech control interface)
   hardware.logitech.wireless.enable = true;
   hardware.logitech.wireless.enableGraphical = true;
 
-  # locale
+  # Locale
   time.timeZone = "Asia/Jerusalem";
   i18n.defaultLocale = "en_US.UTF-8";
 
+  # S3 sleep is great enough
   systemd.targets.hibernate.enable = false;
 
   #copy current config into etc, this way I can restore config if current evaluation is broken, BEWARE it can contain secrets and such...
+  # or just use git
   environment.etc.current-nixos-config.source = ./.; #https://logs.nix.samueldr.com/nixos/2018-06-25#1529934995-1529935276;
   
   
@@ -74,6 +82,7 @@
   #   useXkbConfig = true; # use xkb.options in tty.
   # };
 
+  # Using wayland with xwayland instead.
   # Enable the X11 windowing system.
   # services.xserver.enable = true;
 
@@ -86,9 +95,7 @@
   services.displayManager.sddm.enable = true;
   services.displayManager.sddm.wayland.enable = true;
   services.desktopManager.plasma6.enable = true;
-  services.desktopManager.plasma6.enableQt5Integration = true; #disable for qt6 full version;
-  services.dnsmasq.enable = true;
-
+  services.desktopManager.plasma6.enableQt5Integration = true; # disable for qt6 full version;
 
   # Fonts
   
@@ -113,21 +120,20 @@
       support32Bit = true;
     };
   };
-  security.rtkit.enable = true; # https://mynixos.com/nixpkgs/option/security.rtkit.enable
+  security.rtkit.enable = true; # realtime scheduling priority to user processes on demand https://mynixos.com/nixpkgs/option/security.rtkit.enable
 
   # Enable touchpad support (enabled default in most desktopManager).
   # services.libinput.enable = true;
 
 services.locate = {
 enable = true;
-localuser = null; # use root
-package = pkgs.plocate;
-interval = "hourly"; # possible with mlocate because it's fast (because incremental)
+localuser = null; # use root, idk why its called null here.
+package = pkgs.plocate; # default is locate.
+interval = "hourly"; # possible with plocate because it's fast (because incremental)
 };
 
-services.power-profiles-daemon.enable = false;
-
-
+# Power Management
+services.power-profiles-daemon.enable = false; # doesn't work with TLP.
 # fixing tlp 1.7.0, https://github.com/NixOS/nixpkgs/issues/349759
 # probably will be deleted once flake is updated
 nixpkgs = {
