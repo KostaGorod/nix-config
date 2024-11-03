@@ -63,8 +63,9 @@ in
     # git
     git-credential-oauth
 
-    #knowledge base tools
+    # knowledge base tools
     obsidian
+    
     # networking tools
     # mtr # A network diagnostic tool
     # iperf3
