@@ -1,12 +1,14 @@
 {
   description = "KostaGorod's Nixos configuration";
   inputs = {
-    # NOTE: Replace "nixos-23.11" with that which is in system.stateVersion of
+    # NOTE: Replace "nixos-24.05" with that which is in system.stateVersion of
     # configuration.nix. You can also use latter versions if you wish to
     # upgrade.
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     nixpkgs-stable.url = "github:NixOS/nixpkgs/nixos-24.05";
+    
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
+    
     disko.url = "github:nix-community/disko";
     disko.inputs.nixpkgs.follows = "nixpkgs";
 
@@ -36,13 +38,12 @@
     nixosConfigurations.rocinante = nixpkgs.lib.nixosSystem {
       inherit system; # inherited it from 'let' block
       specialArgs = { inherit pkgs-stable inputs; }; # pass additional args to modules ( accesible via declared { config, pkgs, pkgs-stable, ...} at the top of the module.nix files)
-      # system = "x86_64-linux";
       modules = [
-        ./configuration.nix
+        ./nixos/configuration.nix
 
         # nixos-hardware.nixosModules.lenovo-thinkpad-x1-9th-gen
         inputs.disko.nixosModules.disko
-        ./disko-config.nix
+        ./nixos/disko-config.nix
 
         nix-ld.nixosModules.nix-ld
         { programs.nix-ld.dev.enable = true; }
@@ -51,9 +52,9 @@
         # so that home-manager configuration will be deployed automatically when executing `nixos-rebuild switch`
         home-manager.nixosModules.home-manager
         {
-          home-manager.useGlobalPkgs = true;
+          home-manager.useGlobalPkgs = true; # makes hm use nixos's pkgs value
           home-manager.useUserPackages = true;
-          home-manager.users.kosta = import ./home.nix;
+          home-manager.users.kosta = import ./home-manager/home.nix;
 
           # Optionally, use home-manager.extraSpecialArgs to pass arguments to home.nix
         }
