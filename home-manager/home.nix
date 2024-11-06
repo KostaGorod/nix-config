@@ -230,8 +230,12 @@ in
       l = "ls";
       ll = "ls -la";
       la = "ls -a";
+      gs = "git status";
+      gl = "git log";
+      g = "git";
       k = "kubectl";
-      # rebuild  = "nixos-rebuild switch";
+    
+    # rebuild  = "nixos-rebuild switch";
     };
     extraConfig = ''
       ####
