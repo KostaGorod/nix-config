@@ -18,6 +18,8 @@ in
   inherit username;
   };
 
+  
+
 
   # link the configuration file in current directory to the specified location in home directory
   # home.file.".config/i3/wallpaper.jpg".source = ./wallpaper.jpg;
@@ -65,12 +67,12 @@ in
 
     # knowledge base tools
     obsidian
-    
+    todoist-electron   
     # networking tools
     # mtr # A network diagnostic tool
     # iperf3
-    # dnsutils  # `dig` + `nslookup`
-    # ldns # replacement of `dig`, it provide the command `drill`
+    dnsutils  # `dig` + `nslookup`
+    ldns # replacement of `dig`, it provide the command `drill`
     # aria2 # A lightweight multi-protocol & multi-source command-line download utility
     # socat # replacement of openbsd-netcat
     # nmap # A utility for network discovery and security auditing
@@ -79,7 +81,7 @@ in
     # cowsay
     file
     which
-    # tree
+    tree
     # gnused
     # gnutar
     # gawk
@@ -87,7 +89,6 @@ in
     # gnupg
 
     # nix related
-    #
     # it provides the command `nom` works just like `nix`
     # with more details log output
     nix-output-monitor
@@ -110,6 +111,16 @@ in
     ethtool
     pciutils # lspci
     usbutils # lsusb
+
+    # k8s and stuff
+    kubectl
+    k9s
+    lens # GUI for k8s
+
+
+    ##
+    discord
+    slack
   ];
 
   programs.vscode = {
