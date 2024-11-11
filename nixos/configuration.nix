@@ -105,8 +105,13 @@
   # services.xserver.xkb.options = "eurosign:e,caps:escape";
 
   # Enable CUPS to print documents.
-  # services.printing.enable = true;
-
+  services.printing.enable = true;
+  services.printing.drivers = [ pkgs.hplip ];
+  services.avahi = { # Printers AutoDiscovery
+    enable = true;
+    nssmdns4 = true;
+    openFirewall = true;
+  };
   # Enable sound.
   # hardware.pulseaudio.enable = true;
   # OR
@@ -201,15 +206,12 @@ services.tlp = {
     shell = pkgs.nushell;
     packages = with pkgs; [
       _1password-gui
-      k9s
-      kubectl
       firefox
       kdePackages.kdeconnect-kde
       kdePackages.plasma-browser-integration
       pciutils
       remmina #rdp client
       code-cursor
-      discord
       onlyoffice-bin_latest
       # modified Vivaldi package for native wayland support
       ((vivaldi.overrideAttrs (oldAttrs: {
@@ -223,10 +225,6 @@ services.tlp = {
         proprietaryCodecs = true; # Optional preference
         enableWidevine = true;    # Optional preference
       })
-##
-
-      tree
-      slack
     ];
   };
   
