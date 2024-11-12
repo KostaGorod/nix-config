@@ -215,6 +215,13 @@ services.tlp = {
       onlyoffice-bin_latest
       # modified Vivaldi package for native wayland support
       ((vivaldi.overrideAttrs (oldAttrs: {
+        # buildInputs = (old.buildInputs or [ ]) ++ [
+        #   libsForQt5.qtwayland
+        #   libsForQt5.qtx11extras
+        #   kdePackages.plasma-integration.qt5
+        #   kdePackages.kio-extras-kf5
+        #   kdePackages.breeze.qt5c
+        # ];
         buildPhase = builtins.replaceStrings
           ["for f in libGLESv2.so libqt5_shim.so ; do"]
           ["for f in libGLESv2.so libqt6_shim.so ; do"]
