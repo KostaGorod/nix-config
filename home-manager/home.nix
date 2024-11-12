@@ -228,10 +228,13 @@ in
   programs.wezterm = {
     enable = true;
     # extraConfig = builtins.readFile ./wezterm.lua;
-    # extraConfig = {
+    extraConfig = ''
+      return { 
+        enable_scroll_var = true
+      };
     #   color_scheme = "Catppuccin Frappe";
     #   font = wezterm.font("JetBrains Mono");
-    # };
+    '';
   };
 
 # NuShell - Shell
