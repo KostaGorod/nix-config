@@ -139,26 +139,6 @@ interval = "hourly"; # possible with plocate because it's fast (because incremen
 
 # Power Management
 services.power-profiles-daemon.enable = false; # doesn't work with TLP.
-# fixing tlp 1.7.0, https://github.com/NixOS/nixpkgs/issues/349759
-# probably will be deleted once flake is updated
-nixpkgs = {
-  overlays =  [
-    (final: prev:{
-      tlp = prev.tlp.overrideAttrs (old: {
-        makeFlags = (old.makeFlags or [ ]) ++ [
-          "TLP_ULIB=/lib/udev"
-          "TLP_NMDSP=/lib/NetworkManager/dispatcher.d"
-          "TLP_SYSD=/lib/systemd/system"
-          "TLP_SDSL=/lib/systemd/system-sleep"
-          "TLP_ELOD=/lib/elogind/system-sleep"
-          "TLP_CONFDPR=/share/tlp/deprecated.conf"
-          "TLP_FISHCPL=/share/fish/vendor_completions.d"
-          "TLP_ZSHCPL=/share/zsh/site-functions"
-        ];
-      });
-    })
-  ];
-};
 services.tlp = {
       enable = true;
       settings = {
