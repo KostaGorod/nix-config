@@ -92,10 +92,10 @@
   # services.xserver.desktopManager.gnome.enable = true;
   
   # Enable the KDE Plasma6 Desktop Environment.
-  services.displayManager.sddm.enable = true;
-  services.displayManager.sddm.wayland.enable = true;
-  services.desktopManager.plasma6.enable = true;
-  services.desktopManager.plasma6.enableQt5Integration = true; # disable for qt6 full version;
+  # services.displayManager.sddm.enable = true;
+  # services.displayManager.sddm.wayland.enable = true;
+  # services.desktopManager.plasma6.enable = true;
+  # services.desktopManager.plasma6.enableQt5Integration = true; # disable for qt6 full version;
 
   # Fonts
   

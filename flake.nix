@@ -40,7 +40,7 @@
       specialArgs = { inherit pkgs-stable inputs; }; # pass additional args to modules ( accesible via declared { config, pkgs, pkgs-stable, ...} at the top of the module.nix files)
       modules = [
         ./nixos/configuration.nix
-
+        ./de/plasma6.nix
         # nixos-hardware.nixosModules.lenovo-thinkpad-x1-9th-gen
         inputs.disko.nixosModules.disko
         ./nixos/disko-config.nix
