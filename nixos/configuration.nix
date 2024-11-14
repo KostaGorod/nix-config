@@ -193,24 +193,20 @@ services.tlp = {
       remmina #rdp client
       code-cursor
       onlyoffice-bin_latest
-      # modified Vivaldi package for native wayland support
+      # modified Vivaldi package for native wayland support, also fixes crash in plasma6
       ((vivaldi.overrideAttrs (oldAttrs: {
-        # buildInputs = (old.buildInputs or [ ]) ++ [
-        #   libsForQt5.qtwayland
-        #   libsForQt5.qtx11extras
-        #   kdePackages.plasma-integration.qt5
-        #   kdePackages.kio-extras-kf5
-        #   kdePackages.breeze.qt5c
-        # ];
-        buildPhase = builtins.replaceStrings
+        buildPhase = builtins.replaceStrings #add qt6 to patch
           ["for f in libGLESv2.so libqt5_shim.so ; do"]
-          ["for f in libGLESv2.so libqt6_shim.so ; do"]
+          ["for f in libGLESv2.so libqt5_shim.so libqt6_shim.so ; do"]
           oldAttrs.buildPhase;
       })).override {
-        qt5 = pkgs.qt6;
-        commandLineArgs = [ "--ozone-platform=wayland" ];
-        proprietaryCodecs = true; # Optional preference
-        enableWidevine = true;    # Optional preference
+        qt5 = pkgs.qt6; # use qt6
+        commandLineArgs = [
+          "--ozone-platform=wayland"
+          "--disable-gpu-memory-buffer-video-frames" # stop spam for full gpu buffer, hotfix for chromium 126-130, hopefully fixed on 131: https://github.com/th-ch/youtube-music/pull/2519
+          ];
+        proprietaryCodecs = true; # Optional
+        enableWidevine = true;    # Optional
       })
     ];
   };
@@ -230,8 +226,7 @@ services.tlp = {
     maliit-keyboard
     maliit-framework
 
-    # devops ttols
-    # docker_26
+    # devops tools
     kind
     #
     openssl
@@ -254,6 +249,10 @@ services.tlp = {
         pyyaml
       ]
     ))
+    # Install Vulkan tools (replaces opengl)
+    # Test with vulkaninfo
+    # https://www.reddit.com/r/NixOS/comments/ernur4/anyway_i_can_get_vulkan_installed/
+    vulkan-tools
   ];
   services.tailscale.enable = true;
   
@@ -270,8 +269,6 @@ services.tlp = {
   #   enableSSHSupport = true;
   # };
 
-  # List services that you want to enable:
-
   # Enable the OpenSSH daemon.
   # services.openssh.enable = true;
 
@@ -285,11 +282,9 @@ services.tlp = {
   hardware.graphics = {
     enable = true;
     extraPackages = with pkgs; [
-      intel-media-driver
-      (if lib.versionOlder (lib.versions.majorMinor lib.version) "23.11" 
-       then vaapiIntel 
-       else vaapiVdpau)
-      libvdpau-va-gl
+      intel-media-driver # VAAPI driver
+      libva-vdpau-driver # VDPAU to VAAPI
+      # libvdpau-va-gl # Wrapper for apps that doesnt support VDPAU (VAAPI to VDPAU)
     ];
   };
   environment.sessionVariables = {
