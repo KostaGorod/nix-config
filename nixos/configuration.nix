@@ -86,7 +86,6 @@
   # Enable the X11 windowing system.
   # services.xserver.enable = true;
 
-
   # Enable the GNOME Desktop Environment.
   # services.xserver.displayManager.gdm.enable = true;
   # services.xserver.desktopManager.gnome.enable = true;
@@ -217,9 +216,10 @@ services.tlp = {
   # List packages installed in system profile. To search, run:
   # $ nix search wget
   environment.systemPackages = with pkgs; [
+    # Terminal Editors
     vim # Do not forget to add an editor to edit configuration.nix! The Nano editor is also installed by default.
     helix
-    coreutils
+    
     # GUI
     numix-cursor-theme
     # Virtual Keyboard
@@ -229,6 +229,8 @@ services.tlp = {
     # devops tools
     kind
     #
+    sshuttle
+    coreutils
     openssl
     gettext
     wget
@@ -238,7 +240,7 @@ services.tlp = {
     tailscale
     borgbackup
     easyeffects
-    (zed-editor.fhsWithPackages (pkgs: [ pkgs.zlib ])) # zed missing zlib to work is expected https://github.com/xhyrom/zed-discord-presence/issues/12
+    # (zed-editor.fhsWithPackages (pkgs: [ pkgs.zlib ])) # zed missing zlib to work is expected https://github.com/xhyrom/zed-discord-presence/issues/12
     (python312.withPackages (ps:
       with ps; [
         ipython

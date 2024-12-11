@@ -38,17 +38,19 @@ in
 
   # set cursor size and dpi for 4k monitor
   # xresources.properties = {
+  
   #   "Xcursor.size" = 16;
   #   "Xft.dpi" = 172;
   # };
   # Packages that should be installed to the user profile.
+    
   home.packages = with pkgs; [
     # here is some command line tools I use frequently
     # feel free to add your own or remove some of them
 
     fastfetch
     nnn # terminal file manager
-
+    
     # archives
     zip
     xz
@@ -61,7 +63,7 @@ in
     yq-go # yaml processor https://github.com/mikefarah/yq
     eza # A modern replacement for ‘ls’
     fzf # A command-line fuzzy finder
-
+    tldr # Community man pages
     # git
     git-credential-oauth
 
