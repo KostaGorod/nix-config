@@ -48,6 +48,10 @@ in
     # here is some command line tools I use frequently
     # feel free to add your own or remove some of them
 
+    # IDE
+    zed-editor
+
+    
     fastfetch
     nnn # terminal file manager
     
@@ -64,6 +68,7 @@ in
     eza # A modern replacement for ‘ls’
     fzf # A command-line fuzzy finder
     tldr # Community man pages
+    
     # git
     git-credential-oauth
 
@@ -287,10 +292,34 @@ in
 
     
   };
-  programs.carapace= {
+  
+  programs.carapace = {
     enable = true;
     enableNushellIntegration = true;
   };
+
+  # Home-manager's zed produces read only `settings.json`, which limits features as changing models or settings at runtime.
+  # programs.zed-editor = {
+  #   enable = true;
+  #   extensions = [
+  #     "tokyo-night" # Theme
+  #     "nix" #
+  #     "dockerfile"
+  #   ];
+
+  #   userSettings = {
+  #     terminal.env = {
+  #       ZED = "1";
+  #       TERM = "xterm-256color";
+  #     };
+  #      theme = {
+  #      mode = "dark"; # = "system" for auto
+  #      light = "Tokyo Night Light";
+  #      dark = "Tokyo Night Storm";
+  #      };
+  #   };  
+  # };
+  
   # programs.bash = {
   #   enable = true;
   #   enableCompletion = true;
