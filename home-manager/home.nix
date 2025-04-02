@@ -1,4 +1,4 @@
-{ config, pkgs, lib, specialArgs, ... }:
+{ config, pkgs, lib, specialArgs, system, inputs, ... }:
 let
 
   inherit (specialArgs) hostname role;
@@ -8,7 +8,7 @@ let
 in
 {
 
-  
+
   # TODO please change the username & home directory to your own
   # home.username = "kosta";
   # home.homeDirectory = "/home/kosta";
@@ -18,7 +18,7 @@ in
   inherit username;
   };
 
-  
+
 
 
   # link the configuration file in current directory to the specified location in home directory
@@ -38,12 +38,12 @@ in
 
   # set cursor size and dpi for 4k monitor
   # xresources.properties = {
-  
+
   #   "Xcursor.size" = 16;
   #   "Xft.dpi" = 172;
   # };
   # Packages that should be installed to the user profile.
-    
+
   home.packages = with pkgs; [
     # here is some command line tools I use frequently
     # feel free to add your own or remove some of them
@@ -51,10 +51,9 @@ in
     # IDE
     zed-editor
 
-    
     fastfetch
     nnn # terminal file manager
-    
+
     # archives
     zip
     xz
@@ -68,13 +67,13 @@ in
     eza # A modern replacement for ‘ls’
     fzf # A command-line fuzzy finder
     tldr # Community man pages
-    
+
     # git
     git-credential-oauth
 
     # knowledge base tools
     obsidian
-    todoist-electron   
+    todoist-electron
     # networking tools
     # mtr # A network diagnostic tool
     # iperf3
@@ -102,6 +101,7 @@ in
 
     # productivity
     glow # markdown previewer in terminal
+    openterface-qt # GUI for openface KVM
 
     btop  # replacement of htop/nmon
     iotop # io monitoring
@@ -128,6 +128,15 @@ in
     ##
     discord
     slack
+
+    ## arrr
+    deluge-gtk
+
+    ##media
+    kdePackages.dragon
+
+    ## browsers
+    inputs.zen-browser.packages."${system}".default # beta
   ];
 
   programs.vscode = {
@@ -147,7 +156,7 @@ in
       #copilot
       vscode-extensions.github.copilot
       vscode-extensions.github.copilot-chat
-      
+
       # langauge specific
       # Nix
       vscode-extensions.bbenoist.nix # #nix highlight
@@ -160,7 +169,7 @@ in
     ];
   };
 
-  # Git with oauth , using kwalletmanager to store the oauth token 
+  # Git with oauth , using kwalletmanager to store the oauth token
   programs.git = {
     package = pkgs.gitFull;
     enable = true;
@@ -181,12 +190,12 @@ in
       aws.disabled = false;
       gcloud.disabled = true;
       line_break.disabled = true;
-      
+
     };
   };
 
   programs.direnv.enable = true;
-  
+
   # # alacritty - a cross-platform, GPU-accelerated terminal emulator
   # programs.alacritty = {
   #   enable = true;
@@ -236,7 +245,7 @@ in
     enable = true;
     # extraConfig = builtins.readFile ./wezterm.lua;
     extraConfig = ''
-      return { 
+      return {
         enable_scroll_var = true
       };
     #   color_scheme = "Catppuccin Frappe";
@@ -255,7 +264,7 @@ in
       gl = "git log";
       g = "git";
       k = "kubectl";
-    
+
     # rebuild  = "nixos-rebuild switch";
     };
     extraConfig = ''
@@ -272,14 +281,14 @@ in
       algorithm: "fuzzy"    # prefix or fuzzy
       # external: {
     #   # set to false to prevent nushell looking into $env.PATH to find more suggestions
-          # enable: true 
+          # enable: true
     #   # set to lower can improve completion performance at the cost of omitting some options
-          # max_results: 100 
-          # completer: $carapace_completer # check 'carapace_completer' 
+          # max_results: 100
+          # completer: $carapace_completer # check 'carapace_completer'
         # }
       }
-     } 
-     $env.PATH = ($env.PATH | 
+     }
+     $env.PATH = ($env.PATH |
      split row (char esep) |
      prepend /home/myuser/.apps |
      append /usr/bin/env
@@ -290,17 +299,18 @@ in
     '';
 
 
-    
+
   };
-  
+
   programs.carapace = {
     enable = true;
     enableNushellIntegration = true;
   };
 
   # Home-manager's zed produces read only `settings.json`, which limits features as changing models or settings at runtime.
-  # programs.zed-editor = {
+  programs.zed-editor = {
   #   enable = true;
+    extraPackages = [ pkgs.ansible-lint ];
   #   extensions = [
   #     "tokyo-night" # Theme
   #     "nix" #
@@ -317,9 +327,9 @@ in
   #      light = "Tokyo Night Light";
   #      dark = "Tokyo Night Storm";
   #      };
-  #   };  
-  # };
-  
+  #   };
+  };
+
   # programs.bash = {
   #   enable = true;
   #   enableCompletion = true;
