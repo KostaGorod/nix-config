@@ -2,13 +2,30 @@
 # your system. Help is available in the configuration.nix(5) man page, on
 # https://search.nixos.org/options and in the NixOS manual (`nixos-help`).
 
-{ inputs, config, lib, pkgs, options, ... }:
+{ inputs, config, lib, pkgs, pkgs-stable, options, ... }:
 
 {
-  imports =
-    [ # Include the results of the hardware scan.
-      ./hardware-configuration.nix
+
+  # 1. Disable the networking modules from unstable
+  disabledModules = [
+    "config/networking.nix"                          # core networking settings (hosts, interfaces, firewall, etc.)
+    "services/networking/networkmanager.nix"         # NetworkManager service module
+    # "services/networking/modemmanager.nix"
+    # "services/networking/wpa_supplicant.nix"         # WPA supplicant (wireless) service module
+    # ... add any other networking-related modules you want to take from stable ...
+  ];
+
+    # 2. Import the networking modules from the stable nixpkgs
+  imports = [
+    ./hardware-configuration.nix # Include the results of the hardware scan.
+
+    "${pkgs-stable.path}/nixos/modules/config/networking.nix"
+    "${pkgs-stable.path}/nixos/modules/services/networking/networkmanager.nix"
+    # "${pkgs-stable.path}/nixos/modules/services/networking/modemmanager.nix"
+    # "${pkgs-stable.path}/nixos/modules/services/networking/wpa_supplicant.nix"
     ];
+
+
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
   #nix.channel.enable = true; # not sure if needed at all
   nix = {
@@ -24,13 +41,13 @@
   boot.loader.efi.canTouchEfiVariables = true;
 
   networking.hostName = "rocinante"; # hostname.
-  
+
   networking.networkmanager.enable = true;  # Easiest to use and most distros use this by default.
   # Unlock Integrated Modem
   networking.networkmanager.fccUnlockScripts = [ {id = "1eac:1001"; path = "${pkgs.modemmanager}/share/ModemManager/fcc-unlock.available.d/1eac:1001";} ];
   networking.timeServers = [ "timeserver.iix.net.il" ]; # Items in list seperated by space e.g.: [ "time.cloudflare.com" "time.example.com" ];
   services.dnsmasq.enable = true;
-  
+
   # TODO: set [main] dns=dnsmasq (instead of internal)
   # networking.dhcpcd.extraConfig = ''
   # interface enp*
@@ -41,18 +58,18 @@
 
   # interface wwan*
   # metric 300
-    
+
   # '';
 
   # Virtualization
   virtualisation.docker.enable = true;
   virtualisation.docker.package = pkgs.docker_26;
-  
-    
+
+
   # fwupdmgr for firmwares updates
   services.fwupd.enable = true;
-  
-  # bluetooth 
+
+  # bluetooth
   hardware.bluetooth.enable = true;
 
   # Logitech unify & solaar (logitech control interface)
@@ -69,8 +86,8 @@
   #copy current config into etc, this way I can restore config if current evaluation is broken, BEWARE it can contain secrets and such...
   # or just use git
   environment.etc.current-nixos-config.source = ./.; #https://logs.nix.samueldr.com/nixos/2018-06-25#1529934995-1529935276;
-  
-  
+
+
   # Configure network proxy if necessary
   # networking.proxy.default = "http://user:password@proxy:port/";
   # networking.proxy.noProxy = "127.0.0.1,localhost,internal.domain";
@@ -89,7 +106,7 @@
   # Enable the GNOME Desktop Environment.
   # services.xserver.displayManager.gdm.enable = true;
   # services.xserver.desktopManager.gnome.enable = true;
-  
+
   # Enable the KDE Plasma6 Desktop Environment.
   # services.displayManager.sddm.enable = true;
   # services.displayManager.sddm.wayland.enable = true;
@@ -97,8 +114,8 @@
   # services.desktopManager.plasma6.enableQt5Integration = true; # disable for qt6 full version;
 
   # Fonts
-  
- 
+
+
   # Configure keymap in X11
   # services.xserver.xkb.layout = "us";
   # services.xserver.xkb.options = "eurosign:e,caps:escape";
@@ -106,7 +123,7 @@
   # Enable CUPS to print documents.
   services.printing.enable = true;
   services.printing.drivers = [ pkgs.hplip ];
-  services.avahi = { # Printers AutoDiscovery
+  services.avahi = { # Printers & AirPlay AutoDiscovery
     enable = true;
     nssmdns4 = true;
     openFirewall = true;
@@ -124,14 +141,18 @@
       support32Bit = true;
     };
   };
-  security.rtkit.enable = true; # realtime scheduling priority to user processes on demand https://mynixos.com/nixpkgs/option/security.rtkit.enable
+security.rtkit.enable = true; # realtime scheduling priority to user processes on demand https://mynixos.com/nixpkgs/option/security.rtkit.enable
+
+#enable audit #DISA-STIG
+security.auditd.enable = true;
+security.audit.enable = true;
 
   # Enable touchpad support (enabled default in most desktopManager).
   # services.libinput.enable = true;
 
 services.locate = {
 enable = true;
-localuser = null; # use root, idk why its called null here.
+#localuser = null; # use root, idk why its called null here.
 package = pkgs.plocate; # default is locate.
 interval = "hourly"; # possible with plocate because it's fast (because incremental)
 };
@@ -163,7 +184,7 @@ services.tlp = {
 
       RUNTIME_PM_ON_AC = "auto" ; # Enabling runtime power management for PCI(e) bus devices while on AC may improve power saving on some laptops.
       RUNTIME_PM_ON_BAT= "auto" ;
-      
+
       # USB_AUTOSUSPEND = 0;
       USB_DENYLIST = "0bda:8153"; # 17ef:*";
 
@@ -177,11 +198,12 @@ services.tlp = {
 
   # set user's default shell system-wide
   # users.defaultUserShell = pkgs.nushell;
-
+  programs.adb.enable = true;
+  # users.users.kosta.extraGroups = lib.mkAfter ["adbusers"];
   # Define a user account. Don't forget to set a password with ‘passwd’.
   users.users.kosta = {
     isNormalUser = true;
-    extraGroups = [ "wheel" "networkmanager" "docker" ]; # Enable ‘sudo’ for the user. # Enable manage access to NetworkManager
+    extraGroups = [ "wheel" "networkmanager" "docker" "adbusers" ]; # Enable ‘sudo’ for the user. # Enable manage access to NetworkManager
     shell = pkgs.nushell;
     packages = with pkgs; [
       _1password-gui
@@ -192,6 +214,7 @@ services.tlp = {
       remmina #rdp client
       code-cursor
       onlyoffice-bin_latest
+      #
       # modified Vivaldi package for native wayland support, also fixes crash in plasma6
       ((vivaldi.overrideAttrs (oldAttrs: {
         buildPhase = builtins.replaceStrings #add qt6 to patch
@@ -209,19 +232,26 @@ services.tlp = {
       })
     ];
   };
-  
+
   # Set the default editor to helix
   environment.variables.EDITOR = "hx";
-  
+
+  fonts.packages = with pkgs; [
+    helvetica-neue-lt-std
+    fragment-mono #Helvetica Monospace Coding Font
+    aileron #Helvetica font in nine weights
+
+  ];
   # List packages installed in system profile. To search, run:
   # $ nix search wget
   environment.systemPackages = with pkgs; [
     # Terminal Editors
     vim # Do not forget to add an editor to edit configuration.nix! The Nano editor is also installed by default.
     helix
-    
+
     # GUI
     numix-cursor-theme
+    gnome-calculator
     # Virtual Keyboard
     maliit-keyboard
     maliit-framework
@@ -240,6 +270,7 @@ services.tlp = {
     tailscale
     borgbackup
     easyeffects
+    teamviewer
     # (zed-editor.fhsWithPackages (pkgs: [ pkgs.zlib ])) # zed missing zlib to work is expected https://github.com/xhyrom/zed-discord-presence/issues/12
     (python312.withPackages (ps:
       with ps; [
@@ -255,14 +286,19 @@ services.tlp = {
     # Test with vulkaninfo
     # https://www.reddit.com/r/NixOS/comments/ernur4/anyway_i_can_get_vulkan_installed/
     vulkan-tools
+
+    # Laptop specific tools
+    libqmi
+
   ];
   services.tailscale.enable = true;
-  
+  services.teamviewer.enable = true;
+
   programs.steam = {
     enable = true;
   };
 
-  
+
   # Some programs need SUID wrappers, can be configured further or are
   # started in user sessions.
   # programs.mtr.enable = true;
@@ -324,4 +360,3 @@ services.tlp = {
   nix.settings.auto-optimise-store = true;
 
 }
-
