@@ -2,13 +2,13 @@
   description = "KostaGorod's Nixos configuration";
   inputs = {
     # NOTE: Replace "nixos-24.05" with that which is in system.stateVersion of
-    # configuration.nix. You can also use latter versions if you wish to
+    # configuration.nix. You can also use later versions.
     # upgrade.
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     nixpkgs-stable.url = "github:NixOS/nixpkgs/nixos-24.05";
-    
+
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
-    
+
     disko.url = "github:nix-community/disko";
     disko.inputs.nixpkgs.follows = "nixpkgs";
 
@@ -19,6 +19,8 @@
     home-manager.url = "github:nix-community/home-manager/master";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
 
+    zen-browser.url = "github:0xc000022070/zen-browser-flake";
+
     # custom flakes fixing gpu issue
     wezterm = {
       url = "github:wez/wezterm/main?dir=nix";
@@ -27,7 +29,7 @@
 
   };
   # outputs = inputs@{ self, nixpkgs, nixos-hardware, disko, home-manager, ... }: {
-  outputs = inputs@{ self, nixpkgs, nixpkgs-stable, nix-ld , nixos-hardware, home-manager, disko, ... }:
+  outputs = inputs@{ self, nixpkgs, nixpkgs-stable, nix-ld , nixos-hardware, home-manager, disko, zen-browser, ... }:
   let
     system = "x86_64-linux";
     # lib = nixpkgs.lib;
@@ -47,7 +49,7 @@
 
         nix-ld.nixosModules.nix-ld
         { programs.nix-ld.dev.enable = true; }
-        
+
         # make home-manager as a module of nixos
         # so that home-manager configuration will be deployed automatically when executing `nixos-rebuild switch`
         home-manager.nixosModules.home-manager
@@ -57,8 +59,9 @@
           home-manager.users.kosta = import ./home-manager/home.nix;
 
           # Optionally, use home-manager.extraSpecialArgs to pass arguments to home.nix
+	  home-manager.extraSpecialArgs = { inherit inputs system; };
         }
-        
+
       ];
     };
   };
