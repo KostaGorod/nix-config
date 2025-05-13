@@ -31,6 +31,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # mikrotikDevEnv = {
+    #   url = "path:environments/mikrotik";
+    #   inputs.nixpkgs.follows = "nixpkgs";
+    # };
   };
   # outputs = inputs@{ self, nixpkgs, nixos-hardware, disko, home-manager, ... }: {
   outputs = inputs@{ self, nixpkgs, nixpkgs-stable, nix-ld , nixos-hardware, home-manager, disko, zen-browser, ... }:
@@ -48,10 +52,10 @@
       inherit system; # inherited it from 'let' block
       specialArgs = { inherit pkgs-stable inputs; }; # pass additional args to modules ( accesible via declared { config, pkgs, pkgs-stable, ...} at the top of the module.nix files)
       modules = [
-        ./hosts/rocinante/nixos/configuration.nix
+        ./hosts/rocinante/configuration.nix
         # nixos-hardware.nixosModules.lenovo-thinkpad-x1-9th-gen
         inputs.disko.nixosModules.disko
-        ./hosts/rocinante/nixos/disko-config.nix
+        ./hosts/rocinante/disko-config.nix
 
         nix-ld.nixosModules.nix-ld
         { programs.nix-ld.dev.enable = true; }
@@ -70,6 +74,7 @@
 
         # others
         ./de/plasma6.nix
+        ./modules/utils.nix
         ./modules/editors.nix
         ./modules/spotify.nix
 
