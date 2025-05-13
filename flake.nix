@@ -1,24 +1,28 @@
 {
   description = "KostaGorod's Nixos configuration";
   inputs = {
-    # NOTE: Replace "nixos-24.05" with that which is in system.stateVersion of
-    # configuration.nix. You can also use later versions.
-    # upgrade.
+    # core
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    nixpkgs-stable.url = "github:NixOS/nixpkgs/nixos-24.05";
+    nixpkgs-stable.url = "github:NixOS/nixpkgs/nixos-24.05"; # NOTE: Replace "nixos-24.05" with that which is in system.stateVersion of configuration.nix. You can also use later versions.
 
+    # hardware
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
+    disko = {
+      url = "github:nix-community/disko";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
-    disko.url = "github:nix-community/disko";
-    disko.inputs.nixpkgs.follows = "nixpkgs";
+    # Home-manager
+    home-manager = {
+      url = "github:nix-community/home-manager/master";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
-    nix-ld.url = "github:Mic92/nix-ld";
-    nix-ld.inputs.nixpkgs.follows = "nixpkgs";
-
-    # home-manager
-    home-manager.url = "github:nix-community/home-manager/master";
-    home-manager.inputs.nixpkgs.follows = "nixpkgs";
-
+    # Other
+    nix-ld = { # Run unpatched dynamic binaries on NixOS.
+      url = "github:Mic92/nix-ld";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     zen-browser.url = "github:0xc000022070/zen-browser-flake";
 
     # custom flakes fixing gpu issue
@@ -27,6 +31,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # mikrotikDevEnv = {
+    #   url = "path:environments/mikrotik";
+    #   inputs.nixpkgs.follows = "nixpkgs";
+    # };
   };
   # outputs = inputs@{ self, nixpkgs, nixos-hardware, disko, home-manager, ... }: {
   outputs = inputs@{ self, nixpkgs, nixpkgs-stable, nix-ld , nixos-hardware, home-manager, disko, zen-browser, ... }:
@@ -36,16 +44,18 @@
     pkgs-stable = nixpkgs-stable.legacyPackages.${system}; #https://discourse.nixos.org/t/mixing-stable-and-unstable-packages-on-flake-based-nixos-system/50351/2
   in
   {
-    # NOTE: 'nixos' is the default hostname set by the installer
+    nixConfig = {
+      nix.settings.experimental-features = [ "nix-command" "flakes" ]; # enable flakes
+    };
+
     nixosConfigurations.rocinante = nixpkgs.lib.nixosSystem {
       inherit system; # inherited it from 'let' block
       specialArgs = { inherit pkgs-stable inputs; }; # pass additional args to modules ( accesible via declared { config, pkgs, pkgs-stable, ...} at the top of the module.nix files)
       modules = [
-        ./nixos/configuration.nix
-        ./de/plasma6.nix
+        ./hosts/rocinante/configuration.nix
         # nixos-hardware.nixosModules.lenovo-thinkpad-x1-9th-gen
         inputs.disko.nixosModules.disko
-        ./nixos/disko-config.nix
+        ./hosts/rocinante/disko-config.nix
 
         nix-ld.nixosModules.nix-ld
         { programs.nix-ld.dev.enable = true; }
@@ -54,13 +64,19 @@
         # so that home-manager configuration will be deployed automatically when executing `nixos-rebuild switch`
         home-manager.nixosModules.home-manager
         {
-          home-manager.useGlobalPkgs = true; # makes hm use nixos's pkgs value
+          home-manager.useGlobalPkgs = true; # makes home-manager follow nixos's pkgs value
           home-manager.useUserPackages = true;
           home-manager.users.kosta = import ./home-manager/home.nix;
 
-          # Optionally, use home-manager.extraSpecialArgs to pass arguments to home.nix
-	  home-manager.extraSpecialArgs = { inherit inputs system; };
+          # pass arguments to home.nix
+          home-manager.extraSpecialArgs = { inherit inputs system; };
         }
+
+        # others
+        ./de/plasma6.nix
+        ./modules/utils.nix
+        ./modules/editors.nix
+        ./modules/spotify.nix
 
       ];
     };
