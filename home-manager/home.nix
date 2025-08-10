@@ -1,4 +1,4 @@
-{ config, pkgs, lib, specialArgs, system, inputs, ... }:
+{ config, pkgs, lib, specialArgs, inputs, ... }:
 let
 
   inherit (specialArgs) hostname role;
@@ -54,19 +54,8 @@ in
     fastfetch
     nnn # terminal file manager
 
-    # archives
-    zip
-    xz
-    unzip
-    p7zip
 
-    # utils
-    ripgrep # recursively searches directories for a regex pattern
-    jq # A lightweight and flexible command-line JSON processor
-    yq-go # yaml processor https://github.com/mikefarah/yq
-    eza # A modern replacement for ‘ls’
-    fzf # A command-line fuzzy finder
-    tldr # Community man pages
+
 
     # git
     git-credential-oauth
@@ -76,18 +65,14 @@ in
     todoist-electron
     # networking tools
     # mtr # A network diagnostic tool
-    # iperf3
-    dnsutils  # `dig` + `nslookup`
-    ldns # replacement of `dig`, it provide the command `drill`
+
     # aria2 # A lightweight multi-protocol & multi-source command-line download utility
     # socat # replacement of openbsd-netcat
     # nmap # A utility for network discovery and security auditing
 
     # misc #
     # cowsay
-    file
-    which
-    tree
+
     # gnused
     # gnutar
     # gawk
@@ -103,21 +88,6 @@ in
     glow # markdown previewer in terminal
     openterface-qt # GUI for openface KVM
 
-    btop  # replacement of htop/nmon
-    iotop # io monitoring
-    iftop # network monitoring
-
-    # system call monitoring
-    strace # system call monitoring
-    ltrace # library call monitoring
-    lsof # list open files
-
-    # system tools
-    sysstat
-    lm_sensors # for `sensors` command
-    ethtool
-    pciutils # lspci
-    usbutils # lsusb
 
     # k8s and stuff
     kubectl
@@ -136,7 +106,8 @@ in
     kdePackages.dragon
 
     ## browsers
-    inputs.zen-browser.packages."${system}".default # beta
+    inputs.zen-browser.packages."x86_64-linux".default # beta
+    # inputs.zen-browser.packages."${system}".default # beta
   ];
 
   programs.vscode = {
@@ -240,18 +211,6 @@ in
     ];
   };
 
-# Wezterm - terminal emulator
-  programs.wezterm = {
-    enable = true;
-    # extraConfig = builtins.readFile ./wezterm.lua;
-    extraConfig = ''
-      return {
-        enable_scroll_var = true
-      };
-    #   color_scheme = "Catppuccin Frappe";
-    #   font = wezterm.font("JetBrains Mono");
-    '';
-  };
 
 # NuShell - Shell
   programs.nushell = {
