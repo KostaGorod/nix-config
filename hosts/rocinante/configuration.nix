@@ -1,26 +1,27 @@
 # Edit this configuration file to define what should be installed on
+#
 # your system. Help is available in the configuration.nix(5) man page, on
 # https://search.nixos.org/options and in the NixOS manual (`nixos-help`).
 
-{ inputs, config, lib, pkgs, pkgs-stable, options, ... }:
+{ inputs, config, lib, pkgs, options, ... }:
 
 {
 
   # 1. Disable the networking modules from unstable
-  disabledModules = [
-    "config/networking.nix"                          # core networking settings (hosts, interfaces, firewall, etc.)
-    "services/networking/networkmanager.nix"         # NetworkManager service module
-    # "services/networking/modemmanager.nix"
-    # "services/networking/wpa_supplicant.nix"         # WPA supplicant (wireless) service module
-    # ... add any other networking-related modules you want to take from stable ...
-  ];
+  # disabledModules = [
+  #   "config/networking.nix"                          # core networking settings (hosts, interfaces, firewall, etc.)
+  #   "services/networking/networkmanager.nix"         # NetworkManager service module
+  #   # "services/networking/modemmanager.nix"
+  #   # "services/networking/wpa_supplicant.nix"         # WPA supplicant (wireless) service module
+  #   # ... add any other networking-related modules you want to take from stable ...
+  # ];
 
     # 2. Import the networking modules from the stable nixpkgs
   imports = [
     ./hardware-configuration.nix # Include the results of the hardware scan.
 
-    "${pkgs-stable.path}/nixos/modules/config/networking.nix"
-    "${pkgs-stable.path}/nixos/modules/services/networking/networkmanager.nix"
+    #"${pkgs-stable.path}/nixos/modules/config/networking.nix"
+    #"${pkgs-stable.path}/nixos/modules/services/networking/networkmanager.nix"
     # "${pkgs-stable.path}/nixos/modules/services/networking/modemmanager.nix"
     # "${pkgs-stable.path}/nixos/modules/services/networking/wpa_supplicant.nix"
     ];
@@ -34,6 +35,9 @@
 
   };
   nixpkgs.config.allowUnfree = lib.mkForce true; # force allow unfree (if unfree is false by default)
+  nixpkgs.config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [
+    "claude-code"
+  ];
 
   # Bootloader.
   # Use the systemd-boot EFI boot loader.
@@ -63,7 +67,7 @@
 
   # Virtualization
   virtualisation.docker.enable = true;
-  virtualisation.docker.package = pkgs.docker_26;
+  virtualisation.docker.package = pkgs.docker_28;
 
 
   # fwupdmgr for firmwares updates
@@ -78,7 +82,29 @@
 
   # Locale
   time.timeZone = "Asia/Jerusalem";
-  i18n.defaultLocale = "en_US.UTF-8";
+  i18n = {
+    defaultLocale = "en_US.UTF-8";
+
+    # Add additional locales
+    extraLocaleSettings = {
+        LC_ADDRESS = "en_US.UTF-8";
+        LC_IDENTIFICATION = "en_US.UTF-8";
+        LC_MEASUREMENT = "en_US.UTF-8";
+        LC_MONETARY = "en_US.UTF-8";
+        LC_NAME = "en_US.UTF-8";
+        LC_NUMERIC = "en_US.UTF-8";
+        LC_PAPER = "en_US.UTF-8";
+        LC_TELEPHONE = "en_US.UTF-8";
+        LC_TIME = "en_IL.UTF-8";  # This needs to be supported
+    };
+
+    # Generate the locales you need
+    supportedLocales = [
+      "en_US.UTF-8/UTF-8"
+      "en_IL/UTF-8"
+      "C.UTF-8/UTF-8"
+    ];
+  };
 
   # S3 sleep is great enough
   systemd.targets.hibernate.enable = false;
@@ -216,13 +242,21 @@ services.tlp = {
       onlyoffice-bin_latest
       #
       # modified Vivaldi package for native wayland support, also fixes crash in plasma6
-      ((vivaldi.overrideAttrs (oldAttrs: {
-        buildPhase = builtins.replaceStrings #add qt6 to patch
-          ["for f in libGLESv2.so libqt5_shim.so ; do"]
-          ["for f in libGLESv2.so libqt5_shim.so libqt6_shim.so ; do"]
-          oldAttrs.buildPhase;
-      })).override {
-        qt5 = pkgs.qt6; # use qt6
+      # ((vivaldi.overrideAttrs (oldAttrs: {
+      #   buildPhase = builtins.replaceStrings #add qt6 to patch
+      #     ["for f in libGLESv2.so libqt5_shim.so ; do"]
+      #     ["for f in libGLESv2.so libqt5_shim.so libqt6_shim.so ; do"]
+      #     oldAttrs.buildPhase;
+      # })).override {
+      #   qt5 = pkgs.qt6; # use qt6
+      #   commandLineArgs = [
+      #     "--ozone-platform=wayland"
+      #     "--disable-gpu-memory-buffer-video-frames" # stop spam for full gpu buffer, hotfix for chromium 126-130, hopefully fixed on 131: https://github.com/th-ch/youtube-music/pull/2519
+      #     ];
+      #   proprietaryCodecs = true; # Optional
+      #   enableWidevine = true;    # Optional
+      # })
+      (vivaldi.override {
         commandLineArgs = [
           "--ozone-platform=wayland"
           "--disable-gpu-memory-buffer-video-frames" # stop spam for full gpu buffer, hotfix for chromium 126-130, hopefully fixed on 131: https://github.com/th-ch/youtube-music/pull/2519
