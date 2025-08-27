@@ -19,6 +19,7 @@
     # 2. Import the networking modules from the stable nixpkgs
   imports = [
     ./hardware-configuration.nix # Include the results of the hardware scan.
+    ../../modules/tailscale.nix # Tailscale configuration module
 
     #"${pkgs-stable.path}/nixos/modules/config/networking.nix"
     #"${pkgs-stable.path}/nixos/modules/services/networking/networkmanager.nix"
@@ -50,7 +51,6 @@
   # Unlock Integrated Modem
   networking.networkmanager.fccUnlockScripts = [ {id = "1eac:1001"; path = "${pkgs.modemmanager}/share/ModemManager/fcc-unlock.available.d/1eac:1001";} ];
   networking.timeServers = [ "timeserver.iix.net.il" ]; # Items in list seperated by space e.g.: [ "time.cloudflare.com" "time.example.com" ];
-  services.dnsmasq.enable = true;
 
   # TODO: set [main] dns=dnsmasq (instead of internal)
   # networking.dhcpcd.extraConfig = ''
@@ -118,33 +118,6 @@
   # networking.proxy.default = "http://user:password@proxy:port/";
   # networking.proxy.noProxy = "127.0.0.1,localhost,internal.domain";
 
-  # Select internationalisation properties.
-  # console = {
-  #   font = "Lat2-Terminus16";
-  #   keyMap = "us";
-  #   useXkbConfig = true; # use xkb.options in tty.
-  # };
-
-  # Using wayland with xwayland instead.
-  # Enable the X11 windowing system.
-  # services.xserver.enable = true;
-
-  # Enable the GNOME Desktop Environment.
-  # services.xserver.displayManager.gdm.enable = true;
-  # services.xserver.desktopManager.gnome.enable = true;
-
-  # Enable the KDE Plasma6 Desktop Environment.
-  # services.displayManager.sddm.enable = true;
-  # services.displayManager.sddm.wayland.enable = true;
-  # services.desktopManager.plasma6.enable = true;
-  # services.desktopManager.plasma6.enableQt5Integration = true; # disable for qt6 full version;
-
-  # Fonts
-
-
-  # Configure keymap in X11
-  # services.xserver.xkb.layout = "us";
-  # services.xserver.xkb.options = "eurosign:e,caps:escape";
 
   # Enable CUPS to print documents.
   services.printing.enable = true;
@@ -172,9 +145,6 @@ security.rtkit.enable = true; # realtime scheduling priority to user processes o
 #enable audit #DISA-STIG
 security.auditd.enable = true;
 security.audit.enable = true;
-
-  # Enable touchpad support (enabled default in most desktopManager).
-  # services.libinput.enable = true;
 
 services.locate = {
 enable = true;
@@ -301,7 +271,6 @@ services.tlp = {
     jqp
     jp
     httpie
-    tailscale
     borgbackup
     easyeffects
     teamviewer
@@ -325,7 +294,6 @@ services.tlp = {
     libqmi
 
   ];
-  services.tailscale.enable = true;
   services.teamviewer.enable = true;
 
   programs.steam = {

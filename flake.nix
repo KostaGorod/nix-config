@@ -2,12 +2,8 @@
   description = "KostaGorod's Nixos configuration";
   inputs = {
     # core
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    nixpkgs-stable.url = "github:NixOS/nixpkgs/nixos-24.05"; # NOTE: Replace "nixos-24.05" with that which is in system.stateVersion of configuration.nix. You can also use later versions.
-
-    # apple
-    nix-darwin.url = "github:nix-darwin/nix-darwin/master";
-    nix-darwin.inputs.nixpkgs.follows = "nixpkgs-stable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05"; # NOTE: Replace "nixos-24.05" with that which is in system.stateVersion of configuration.nix. You can also use later versions.
+    nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
 
     # hardware
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
@@ -23,10 +19,10 @@
     };
 
     # Other
-    nix-ld = { # Run unpatched dynamic binaries on NixOS.
-      url = "github:Mic92/nix-ld";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    # nix-ld = { # Run unpatched dynamic binaries on NixOS.
+    #   url = "github:Mic92/nix-ld";
+    #   inputs.nixpkgs.follows = "nixpkgs-unstable";
+    # };
     zen-browser.url = "github:0xc000022070/zen-browser-flake";
 
 
@@ -35,9 +31,10 @@
     #   inputs.nixpkgs.follows = "nixpkgs";
     # };
   };
-  # outputs = inputs@{ self, nixpkgs, nixos-hardware, disko, home-manager, ... }: {
-  outputs = inputs@{ self, nixpkgs, nixpkgs-stable, nix-darwin, nix-ld, nixos-hardware, home-manager, disko, zen-browser, ... }:
+  outputs = inputs@{ self, nixpkgs, nixpkgs-unstable, nixos-hardware, home-manager, disko, zen-browser, ... }:
+  # let
 
+  # in
   {
     nixConfig = {
       nix.settings.experimental-features = [ "nix-command" "flakes" ]; # enable flakes
@@ -52,15 +49,12 @@
         inputs.disko.nixosModules.disko
         ./hosts/rocinante/disko-config.nix
 
-        nix-ld.nixosModules.nix-ld
-        { programs.nix-ld.dev.enable = true; }
+        # nix-ld.nixosModules.nix-ld
+        # { programs.nix-ld.dev.enable = true; }
 
         # make home-manager as a module of nixos
         # so that home-manager configuration will be deployed automatically when executing `nixos-rebuild switch`
-        home-manager.nixosModules.home-manager  #let
-          # system = "x86_64-linux";
-          #pkgs-stable = nixpkgs-stable.legacyPackages."x86_64-linux"; #https://discourse.nixos.org/t/mixing-stable-and-unstable-packages-on-flake-based-nixos-system/50351/2
-        #in-manager
+        home-manager.nixosModules.home-manager
         {
           home-manager.useGlobalPkgs = true; # makes home-manager follow nixos's pkgs value
           home-manager.useUserPackages = true;
