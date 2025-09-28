@@ -121,7 +121,10 @@
 
   # Enable CUPS to print documents.
   services.printing.enable = true;
-  services.printing.drivers = [ pkgs.hplip ];
+  services.printing.drivers = [
+    pkgs.hplip
+    pkgs.pantum-driver
+  ];
   services.avahi = { # Printers & AirPlay AutoDiscovery
     enable = true;
     nssmdns4 = true;
