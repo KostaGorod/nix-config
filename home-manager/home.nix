@@ -113,31 +113,35 @@ in
   programs.vscode = {
     package = pkgs.vscode; #pkgs.vscodium
     enable = true;
-    userSettings = {
-      "window.titleBarStyle" = "custom"; # Use Vscode's TitleBarStyle instead of ugly wayland's
-      "workbench.colorTheme" = "Tokyo Night Storm"; #apply theme
-      ##
-    };
-    extensions = with pkgs; [
-      # theme
-      vscode-extensions.enkia.tokyo-night
-      # remote-ssh
-      vscode-extensions.ms-vscode-remote.remote-ssh
-      vscode-extensions.ms-vscode-remote.remote-ssh-edit # complemintery to remote-ssh extention
-      #copilot
-      vscode-extensions.github.copilot
-      vscode-extensions.github.copilot-chat
+    profiles.default = {
+      userSettings = {
+        "window.titleBarStyle" = "custom"; # Use Vscode's TitleBarStyle instead of ugly wayland's
+        "workbench.colorTheme" = "Tokyo Night Storm"; #apply theme
+        ##
+      extensions = with pkgs; [
+        # theme
+        vscode-extensions.enkia.tokyo-night
+        # remote-ssh
+        vscode-extensions.ms-vscode-remote.remote-ssh
+        vscode-extensions.ms-vscode-remote.remote-ssh-edit # complemintery to remote-ssh extention
+        #copilot
+        vscode-extensions.github.copilot
+        vscode-extensions.github.copilot-chat
 
-      # langauge specific
-      # Nix
-      vscode-extensions.bbenoist.nix # #nix highlight
-      # Python
-      vscode-extensions.ms-python.python
-      vscode-extensions.ms-python.debugpy # Debug tool
-      vscode-extensions.ms-python.vscode-pylance
-      vscode-extensions.ms-pyright.pyright
-      vscode-extensions.ms-python.black-formatter # Black Formatter
-    ];
+        # langauge specific
+        # Nix
+        vscode-extensions.bbenoist.nix # #nix highlight
+        # Python
+        vscode-extensions.ms-python.python
+        vscode-extensions.ms-python.debugpy # Debug tool
+        vscode-extensions.ms-python.vscode-pylance
+        vscode-extensions.ms-pyright.pyright
+        vscode-extensions.ms-python.black-formatter # Black Formatter
+      ];
+    };
+
+    };
+
   };
 
   # Git with oauth , using kwalletmanager to store the oauth token

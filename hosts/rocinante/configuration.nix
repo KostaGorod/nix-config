@@ -20,6 +20,8 @@
   imports = [
     ./hardware-configuration.nix # Include the results of the hardware scan.
     ../../modules/tailscale.nix # Tailscale configuration module
+    ../../modules/opencode.nix # OpenCode AI coding agent
+    ../../modules/claude-code.nix # Claude Code CLI
 
     #"${pkgs-stable.path}/nixos/modules/config/networking.nix"
     #"${pkgs-stable.path}/nixos/modules/services/networking/networkmanager.nix"
@@ -49,7 +51,7 @@
 
   networking.networkmanager.enable = true;  # Easiest to use and most distros use this by default.
   # Unlock Integrated Modem
-  networking.networkmanager.fccUnlockScripts = [ {id = "1eac:1001"; path = "${pkgs.modemmanager}/share/ModemManager/fcc-unlock.available.d/1eac:1001";} ];
+  networking.modemmanager.fccUnlockScripts = [ {id = "1eac:1001"; path = "${pkgs.modemmanager}/share/ModemManager/fcc-unlock.available.d/1eac:1001";} ];
   networking.timeServers = [ "timeserver.iix.net.il" ]; # Items in list seperated by space e.g.: [ "time.cloudflare.com" "time.example.com" ];
 
   # TODO: set [main] dns=dnsmasq (instead of internal)
@@ -95,15 +97,11 @@
         LC_NUMERIC = "en_US.UTF-8";
         LC_PAPER = "en_US.UTF-8";
         LC_TELEPHONE = "en_US.UTF-8";
-        LC_TIME = "en_IL.UTF-8";  # This needs to be supported
+        LC_TIME = "en_IL";
     };
 
     # Generate the locales you need
-    supportedLocales = [
-      "en_US.UTF-8/UTF-8"
-      "en_IL/UTF-8"
-      "C.UTF-8/UTF-8"
-    ];
+
   };
 
   # S3 sleep is great enough
