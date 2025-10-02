@@ -49,7 +49,7 @@ in
     # feel free to add your own or remove some of them
 
     # IDE
-    zed-editor
+    inputs.zed-editor.packages.${pkgs.system}.default
 
     fastfetch
     nnn # terminal file manager
