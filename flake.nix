@@ -24,14 +24,19 @@
     #   inputs.nixpkgs.follows = "nixpkgs-unstable";
     # };
     zen-browser.url = "github:0xc000022070/zen-browser-flake";
-
+    
+    # Zed editor - directly from upstream
+    zed-editor = {
+      url = "github:zed-industries/zed?shallow=1";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     # mikrotikDevEnv = {
     #   url = "path:environments/mikrotik";
     #   inputs.nixpkgs.follows = "nixpkgs";
     # };
   };
-  outputs = inputs@{ self, nixpkgs, nixpkgs-unstable, nixos-hardware, home-manager, disko, zen-browser, ... }:
+  outputs = inputs@{ self, nixpkgs, nixpkgs-unstable, nixos-hardware, home-manager, disko, zen-browser, zed-editor, ... }:
   # let
 
   # in
