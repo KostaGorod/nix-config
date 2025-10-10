@@ -1,6 +1,9 @@
 { config, pkgs, lib, specialArgs, inputs, ... }:
 let
-
+  pkgs-unstable = import inputs.nixpkgs-unstable {
+    system = pkgs.system;
+    config.allowUnfree = true;
+  };
   inherit (specialArgs) hostname role;
   inherit (pkgs.stdenv) isLinux isDarwin;
   homeDir = if isDarwin then "/Users/" else "/home/";
@@ -49,7 +52,7 @@ in
     # feel free to add your own or remove some of them
 
     # IDE
-    inputs.zed-editor.packages.${pkgs.system}.default
+    pkgs-unstable.zed-editor
 
     fastfetch
     nnn # terminal file manager
