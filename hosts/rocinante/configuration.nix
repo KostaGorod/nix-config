@@ -4,7 +4,12 @@
 # https://search.nixos.org/options and in the NixOS manual (`nixos-help`).
 
 { inputs, config, lib, pkgs, options, ... }:
-
+let
+  pkgs-unstable = import inputs.nixpkgs-unstable {
+    system = pkgs.system;
+    config.allowUnfree = true;
+  };
+in
 {
 
   # 1. Disable the networking modules from unstable
