@@ -74,6 +74,7 @@
         ./modules/utils.nix
         ./modules/editors.nix
         ./modules/spotify.nix
+        ./modules/moonlight-qt.nix
 
       ];
     };
