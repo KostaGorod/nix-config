@@ -114,14 +114,14 @@ in
   ];
 
   programs.vscode = {
-    package = pkgs.vscode; #pkgs.vscodium
+    package = pkgs-unstable.vscode.fhs; # Use FHS version for better npm/npx support
     enable = true;
     profiles.default = {
       userSettings = {
         "window.titleBarStyle" = "custom"; # Use Vscode's TitleBarStyle instead of ugly wayland's
         "workbench.colorTheme" = "Tokyo Night Storm"; #apply theme
-        ##
-      extensions = with pkgs; [
+
+      extensions = with pkgs-unstable; [
         # theme
         vscode-extensions.enkia.tokyo-night
         # remote-ssh
