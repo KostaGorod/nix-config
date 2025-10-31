@@ -25,6 +25,17 @@
     # };
     zen-browser.url = "github:0xc000022070/zen-browser-flake";
 
+    # FactoryAI Droids IDE
+    droids = {
+      url = "path:./flakes/droids";
+      inputs.nixpkgs.follows = "nixpkgs-unstable";
+    };
+
+    # Anthropic Claude Code CLI
+    claude-code = {
+      url = "path:./flakes/claude-code";
+      inputs.nixpkgs.follows = "nixpkgs-unstable";
+    };
 
     # mikrotikDevEnv = {
     #   url = "path:environments/mikrotik";
@@ -70,6 +81,7 @@
         ./modules/editors.nix
         ./modules/spotify.nix
         ./modules/moonlight-qt.nix
+        ./modules/droids.nix
 
       ];
     };

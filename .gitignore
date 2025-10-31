@@ -1,0 +1,17 @@
+# Secrets - never commit these!
+.config/nixos-secrets/
+
+# Nix build results
+result
+result-*
+
+# Editor/IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db

@@ -45,6 +45,7 @@ in
   nixpkgs.config.allowUnfree = lib.mkForce true; # force allow unfree (if unfree is false by default)
   nixpkgs.config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [
     "claude-code"
+    "droid"
   ];
 
   # Bootloader.
@@ -201,6 +202,13 @@ services.tlp = {
   # set user's default shell system-wide
   # users.defaultUserShell = pkgs.nushell;
   programs.adb.enable = true;
+
+  # Enable FactoryAI Droids IDE
+  programs.droids.enable = true;
+
+  # Enable Anthropic Claude Code CLI
+  programs.claude-code.enable = true;
+
   # users.users.kosta.extraGroups = lib.mkAfter ["adbusers"];
   # Define a user account. Don't forget to set a password with ‘passwd’.
   users.users.kosta = {
