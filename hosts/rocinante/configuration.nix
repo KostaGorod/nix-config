@@ -216,6 +216,7 @@ services.tlp = {
     extraGroups = [ "wheel" "networkmanager" "docker" "adbusers" ]; # Enable ‘sudo’ for the user. # Enable manage access to NetworkManager
     shell = pkgs.nushell;
     packages = with pkgs; [
+      pkgs-unstable.uv
       _1password-gui
       firefox
       kdePackages.kdeconnect-kde
@@ -276,6 +277,7 @@ services.tlp = {
 
     # devops tools
     kind
+    nix-update # Tool for updating nix packages
     #
     sshuttle
     coreutils

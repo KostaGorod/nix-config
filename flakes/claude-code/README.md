@@ -1,10 +1,9 @@
 # Claude Code Flake
 
-Separate flake for Anthropic Claude Code CLI.
+Anthropic Claude Code CLI from npm. **Current:** 2.0.31
 
 ## Update
 
 ```bash
-nix flake lock --update-input claude-code
-sudo nixos-rebuild switch --flake .#rocinante
+./update.sh  # or: nix-update claude-code --flake
 ```
