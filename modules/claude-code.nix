@@ -3,9 +3,9 @@
 let
   cfg = config.programs.claude-code;
 
-  # Import the claude-code flake
-  claude-code-flake = inputs.claude-code;
-  claude-code-pkg = claude-code-flake.packages.${pkgs.system}.default;
+  # Import from nix-ai-tools
+  nix-ai-tools = inputs.nix-ai-tools;
+  claude-code-pkg = nix-ai-tools.packages.${pkgs.system}.claude-code;
 in
 {
   options.programs.claude-code = {
