@@ -1,67 +1,39 @@
-{ config, lib, pkgs, ... }:
+{ config, lib, pkgs, inputs, ... }:
 
 let
-  # Create a custom derivation for OpenCode with its dependencies
-  opencode-with-deps = pkgs.buildEnv {
-    name = "opencode-with-deps";
-    paths = with pkgs; [
-      opencode
-      nodejs_22
-    ];
-  };
+  cfg = config.programs.opencode;
+
+  # Import from nix-ai-tools
+  nix-ai-tools = inputs.nix-ai-tools;
+  opencode-pkg = nix-ai-tools.packages.${pkgs.system}.opencode;
 in
 {
-  # OpenCode AI development environment
-  environment.systemPackages = with pkgs; [
-    # OpenCode with bundled dependencies
-    opencode-with-deps
+  options.programs.opencode = {
+    enable = lib.mkEnableOption "OpenCode AI coding agent";
 
-    # Required runtime dependencies
-    nodejs_22
-    nodePackages_latest.npm
-    nodePackages_latest.pnpm
-    nodePackages_latest.yarn
-    nodePackages_latest.node-gyp
-
-    # Build tools
-    python3
-    gcc
-    gnumake
-
-    # API and network dependencies
-    curl
-    wget
-    cacert
-    openssl
-
-    # Optional but recommended for better functionality
-    git
-    ripgrep
-    fd
-    bat
-    jq
-  ];
-
-  # Optional: Environment variables for OpenCode
-  environment.variables = {
-    # Set default OpenCode configuration directory
-    OPENCODE_CONFIG_HOME = "$HOME/.config/opencode";
-    # Node.js settings for API functionality
-    NODE_OPTIONS = "--max-old-space-size=4096";
-    # SSL certificates for HTTPS requests
-    NODE_EXTRA_CA_CERTS = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
-    SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
-    # Ensure npm can find global modules
-    NPM_CONFIG_PREFIX = "$HOME/.npm-global";
-    # Add npm global bin to PATH
-    PATH = "$HOME/.npm-global/bin:$PATH";
+    package = lib.mkOption {
+      type = lib.types.package;
+      default = opencode-pkg;
+      description = "The OpenCode package to use";
+    };
   };
 
-  # Create necessary directories for OpenCode
-  systemd.tmpfiles.rules = [
-    "d %h/.config/opencode 0755 - - -"
-    "d %h/.cache/opencode 0755 - - -"
-    "d %h/.local/share/opencode 0755 - - -"
-    "d %h/.npm-global 0755 - - -"
-  ];
+  config = lib.mkIf cfg.enable {
+    # Add opencode to system packages
+    environment.systemPackages = [
+      cfg.package
+    ];
+
+    # Create necessary directories for OpenCode
+    systemd.tmpfiles.rules = [
+      "d %h/.config/opencode 0755 - - -"
+      "d %h/.cache/opencode 0755 - - -"
+      "d %h/.local/share/opencode 0755 - - -"
+    ];
+
+    # Add session variables for users
+    environment.sessionVariables = {
+      OPENCODE_CONFIG_HOME = "$HOME/.config/opencode";
+    };
+  };
 }

@@ -25,15 +25,9 @@
     # };
     zen-browser.url = "github:0xc000022070/zen-browser-flake";
 
-    # FactoryAI Droids IDE
-    droids = {
-      url = "path:./flakes/droids";
-      inputs.nixpkgs.follows = "nixpkgs-unstable";
-    };
-
-    # Anthropic Claude Code CLI
-    claude-code = {
-      url = "path:./flakes/claude-code";
+    # Unified AI Coding Agents from numtide/nix-ai-tools
+    nix-ai-tools = {
+      url = "github:numtide/nix-ai-tools";
       inputs.nixpkgs.follows = "nixpkgs-unstable";
     };
 
@@ -42,7 +36,7 @@
     #   inputs.nixpkgs.follows = "nixpkgs";
     # };
   };
-  outputs = inputs@{ self, nixpkgs, nixpkgs-unstable, nixos-hardware, home-manager, disko, zen-browser, ... }:
+  outputs = inputs@{ self, nixpkgs, nixpkgs-unstable, nixos-hardware, home-manager, disko, zen-browser, nix-ai-tools, ... }:
   # let
 
   # in

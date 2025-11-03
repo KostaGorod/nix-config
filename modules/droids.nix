@@ -3,9 +3,9 @@
 let
   cfg = config.programs.droids;
 
-  # Import the droids flake
-  droids-flake = inputs.droids;
-  droids-pkg = droids-flake.packages.${pkgs.system}.default;
+  # Import from nix-ai-tools
+  nix-ai-tools = inputs.nix-ai-tools;
+  droids-pkg = nix-ai-tools.packages.${pkgs.system}.droid;
 in
 {
   options.programs.droids = {

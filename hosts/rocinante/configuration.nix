@@ -209,6 +209,9 @@ services.tlp = {
   # Enable Anthropic Claude Code CLI
   programs.claude-code.enable = true;
 
+  # Enable OpenCode AI coding agent
+  programs.opencode.enable = true;
+
   # users.users.kosta.extraGroups = lib.mkAfter ["adbusers"];
   # Define a user account. Don't forget to set a password with ‘passwd’.
   users.users.kosta = {
