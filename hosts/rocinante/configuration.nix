@@ -27,6 +27,7 @@ in
     ../../modules/tailscale.nix # Tailscale configuration module
     ../../modules/opencode.nix # OpenCode AI coding agent
     ../../modules/claude-code.nix # Claude Code CLI
+    ../../modules/codex.nix # Numtide Codex AI assistant
 
     #"${pkgs-stable.path}/nixos/modules/config/networking.nix"
     #"${pkgs-stable.path}/nixos/modules/services/networking/networkmanager.nix"
@@ -46,6 +47,7 @@ in
   nixpkgs.config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [
     "claude-code"
     "droid"
+    "codex"
   ];
 
   # Bootloader.
@@ -124,11 +126,18 @@ in
 
 
   # Enable CUPS to print documents.
-  services.printing.enable = true;
-  services.printing.drivers = [
-    pkgs.hplip
-    pkgs.pantum-driver
-  ];
+  services.printing = {
+    enable = true;
+    drivers = [
+      pkgs.hplip
+      pkgs.pantum-driver
+    ];
+    # Enable network printer sharing
+    listenAddresses = [ "*:631" ]; # Listen on all interfaces
+    allowFrom = [ "all" ]; # Allow access from all hosts
+    browsing = true; # Enable printer browsing
+    defaultShared = true; # Share all printers by default
+  };
   services.avahi = { # Printers & AirPlay AutoDiscovery
     enable = true;
     nssmdns4 = true;
@@ -199,8 +208,9 @@ services.tlp = {
       };
 };
 
-  # set user's default shell system-wide
-  # users.defaultUserShell = pkgs.nushell;
+  # set user's default shell system-wide (for all users)
+  users.defaultUserShell = pkgs.bash;
+
   programs.adb.enable = true;
 
   # Enable FactoryAI Droids IDE
@@ -209,6 +219,9 @@ services.tlp = {
   # Enable Anthropic Claude Code CLI
   programs.claude-code.enable = true;
 
+  # Enable Numtide Codex AI assistant
+  programs.codex.enable = true;
+
   # Enable OpenCode AI coding agent
   programs.opencode.enable = true;
 
@@ -216,10 +229,44 @@ services.tlp = {
   # Define a user account. Don't forget to set a password with ‘passwd’.
   users.users.kosta = {
     isNormalUser = true;
-    extraGroups = [ "wheel" "networkmanager" "docker" "adbusers" ]; # Enable ‘sudo’ for the user. # Enable manage access to NetworkManager
+    extraGroups = [ "wheel" "networkmanager" "docker" "adbusers" ]; # Enable 'sudo' for the user. # Enable manage access to NetworkManager
     shell = pkgs.nushell;
     packages = with pkgs; [
       pkgs-unstable.uv
+      # Wrap warp-terminal in FHS environment so it can find shells
+      (pkgs.buildFHSUserEnv {
+        name = "warp-terminal";
+        targetPkgs = p: with p; [
+          pkgs-unstable.warp-terminal
+          bash
+          zsh
+          fish
+          git
+          openssh
+        ];
+        runScript = "warp-terminal";
+        profile = ''
+          export HOME=/home/kosta
+        '';
+        extraInstallCommands = ''
+          # Copy desktop entry and icons from the original package
+          mkdir -p $out/share/applications
+          mkdir -p $out/share/pixmaps
+          mkdir -p $out/share/icons
+
+          if [ -d ${pkgs-unstable.warp-terminal}/share/applications ]; then
+            cp -r ${pkgs-unstable.warp-terminal}/share/applications/* $out/share/applications/
+          fi
+
+          if [ -d ${pkgs-unstable.warp-terminal}/share/pixmaps ]; then
+            cp -r ${pkgs-unstable.warp-terminal}/share/pixmaps/* $out/share/pixmaps/
+          fi
+
+          if [ -d ${pkgs-unstable.warp-terminal}/share/icons ]; then
+            cp -r ${pkgs-unstable.warp-terminal}/share/icons/* $out/share/icons/
+          fi
+        '';
+      })
       _1password-gui
       firefox
       kdePackages.kdeconnect-kde
@@ -267,6 +314,9 @@ services.tlp = {
   # List packages installed in system profile. To search, run:
   # $ nix search wget
   environment.systemPackages = with pkgs; [
+    # Shells
+    bash # Required by some applications like warp-terminal
+
     # Terminal Editors
     vim # Do not forget to add an editor to edit configuration.nix! The Nano editor is also installed by default.
     helix
