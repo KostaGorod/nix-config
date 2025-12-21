@@ -231,7 +231,6 @@ in
       g = "git";
       k = "kubectl";
 
-    # rebuild  = "nixos-rebuild switch";
     };
     extraConfig = ''
       ####
