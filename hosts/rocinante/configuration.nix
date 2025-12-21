@@ -27,7 +27,7 @@ in
     ../../modules/tailscale.nix # Tailscale configuration module
     ../../modules/opencode.nix # OpenCode AI coding agent
     ../../modules/claude-code.nix # Claude Code CLI
-    ../../modules/codex.nix # Numtide Codex AI assistant
+    # ../../modules/codex.nix # Numtide Codex AI assistant (temporarily disabled)
 
     #"${pkgs-stable.path}/nixos/modules/config/networking.nix"
     #"${pkgs-stable.path}/nixos/modules/services/networking/networkmanager.nix"
@@ -47,7 +47,7 @@ in
   nixpkgs.config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [
     "claude-code"
     "droid"
-    "codex"
+    # "codex" # temporarily disabled
   ];
 
   # Bootloader.
@@ -230,8 +230,8 @@ services.tlp = {
   # Enable Anthropic Claude Code CLI
   programs.claude-code.enable = true;
 
-  # Enable Numtide Codex AI assistant
-  programs.codex.enable = true;
+  # Enable Numtide Codex AI assistant (temporarily disabled)
+  # programs.codex.enable = true;
 
   # Enable OpenCode AI coding agent
   programs.opencode.enable = true;
