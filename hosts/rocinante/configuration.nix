@@ -225,6 +225,9 @@ services.tlp = {
   # Enable OpenCode AI coding agent
   programs.opencode.enable = true;
 
+  # Enable Abacus.AI DeepAgent desktop client and CLI
+  programs.abacusai.enable = true;
+
   # users.users.kosta.extraGroups = lib.mkAfter ["adbusers"];
   # Define a user account. Don't forget to set a password with ‘passwd’.
   users.users.kosta = {
