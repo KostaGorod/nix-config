@@ -233,40 +233,8 @@ services.tlp = {
     shell = pkgs.nushell;
     packages = with pkgs; [
       pkgs-unstable.uv
-      # Wrap warp-terminal in FHS environment so it can find shells
-      (pkgs.buildFHSUserEnv {
-        name = "warp-terminal";
-        targetPkgs = p: with p; [
-          pkgs-unstable.warp-terminal
-          bash
-          zsh
-          fish
-          git
-          openssh
-        ];
-        runScript = "warp-terminal";
-        profile = ''
-          export HOME=/home/kosta
-        '';
-        extraInstallCommands = ''
-          # Copy desktop entry and icons from the original package
-          mkdir -p $out/share/applications
-          mkdir -p $out/share/pixmaps
-          mkdir -p $out/share/icons
-
-          if [ -d ${pkgs-unstable.warp-terminal}/share/applications ]; then
-            cp -r ${pkgs-unstable.warp-terminal}/share/applications/* $out/share/applications/
-          fi
-
-          if [ -d ${pkgs-unstable.warp-terminal}/share/pixmaps ]; then
-            cp -r ${pkgs-unstable.warp-terminal}/share/pixmaps/* $out/share/pixmaps/
-          fi
-
-          if [ -d ${pkgs-unstable.warp-terminal}/share/icons ]; then
-            cp -r ${pkgs-unstable.warp-terminal}/share/icons/* $out/share/icons/
-          fi
-        '';
-      })
+      # Warp terminal with FHS environment for full system access
+      inputs.warp-fhs.packages.${pkgs.system}.default
       _1password-gui
       firefox
       kdePackages.kdeconnect-kde
