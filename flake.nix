@@ -31,12 +31,18 @@
       inputs.nixpkgs.follows = "nixpkgs-unstable";
     };
 
+    # Warp Terminal with FHS environment
+    warp-fhs = {
+      url = "path:flakes/warp-fhs";
+      # Don't follow our nixpkgs to avoid unnecessary downloads
+    };
+
     # mikrotikDevEnv = {
     #   url = "path:environments/mikrotik";
     #   inputs.nixpkgs.follows = "nixpkgs";
     # };
   };
-  outputs = inputs@{ self, nixpkgs, nixpkgs-unstable, nixos-hardware, home-manager, disko, zen-browser, nix-ai-tools, ... }:
+  outputs = inputs@{ self, nixpkgs, nixpkgs-unstable, nixos-hardware, home-manager, disko, zen-browser, nix-ai-tools, warp-fhs, ... }:
   # let
 
   # in
