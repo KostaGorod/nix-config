@@ -45,12 +45,17 @@
       # The antigravity flake manages its own nixpkgs dependency
     };
 
+    # AbacusAI DeepAgent Desktop and CLI
+    abacusai-fhs = {
+      url = "path:flakes/abacusai-fhs";
+    };
+
     # mikrotikDevEnv = {
     #   url = "path:environments/mikrotik";
     #   inputs.nixpkgs.follows = "nixpkgs";
     # };
   };
-  outputs = inputs@{ self, nixpkgs, nixpkgs-unstable, nixos-hardware, home-manager, disko, zen-browser, nix-ai-tools, warp-fhs, antigravity-fhs, ... }:
+  outputs = inputs@{ self, nixpkgs, nixpkgs-unstable, nixos-hardware, home-manager, disko, zen-browser, nix-ai-tools, warp-fhs, antigravity-fhs, abacusai-fhs, ... }:
   # let
 
   # in
@@ -90,6 +95,7 @@
         ./modules/spotify.nix
         ./modules/moonlight-qt.nix
         ./modules/droids.nix
+        ./modules/abacusai.nix
 
       ];
     };
