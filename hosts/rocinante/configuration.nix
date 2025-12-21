@@ -205,8 +205,8 @@ services.tlp = {
        START_CHARGE_THRESH_BAT0 = 40; # 40 and bellow it starts to charge
        STOP_CHARGE_THRESH_BAT0 = 80; # 80 and above it stops charging
 
-      RUNTIME_PM_ON_AC = "auto" ; # Enabling runtime power management for PCI(e) bus devices while on AC may improve power saving on some laptops.
-      RUNTIME_PM_ON_BAT= "auto" ;
+      RUNTIME_PM_ON_AC = "on" ; # Keep devices active (no suspend) on AC to prevent touchpad delay
+      RUNTIME_PM_ON_BAT = "auto" ;
 
       # USB_AUTOSUSPEND = 0;
       USB_DENYLIST = "0bda:8153"; # 17ef:*";
