@@ -232,6 +232,8 @@ services.tlp = {
     extraGroups = [ "wheel" "networkmanager" "docker" "adbusers" ]; # Enable 'sudo' for the user. # Enable manage access to NetworkManager
     shell = pkgs.nushell;
     packages = with pkgs; [
+      # Antigravity IDE (Google AI-powered development environment)
+      inputs.antigravity-fhs.packages.${pkgs.system}.default
       pkgs-unstable.uv
       # Warp terminal with FHS environment for full system access
       inputs.warp-fhs.packages.${pkgs.system}.default
@@ -282,6 +284,21 @@ services.tlp = {
   # List packages installed in system profile. To search, run:
   # $ nix search wget
   environment.systemPackages = with pkgs; [
+    # Antigravity IDE wrapper script and desktop entry
+    (makeDesktopItem {
+      name = "antigravity";
+      desktopName = "Antigravity IDE";
+      comment = "Google Antigravity AI-powered development environment";
+      exec = "${inputs.antigravity-fhs.packages.${pkgs.system}.default}/bin/antigravity %U";
+      icon = "code";
+      terminal = false;
+      type = "Application";
+      categories = [ "Development" "IDE" ];
+    })
+    (writeShellScriptBin "antigravity" ''
+      exec ${inputs.antigravity-fhs.packages.${pkgs.system}.default}/bin/antigravity "$@"
+    '')
+
     # Shells
     bash # Required by some applications like warp-terminal
 
