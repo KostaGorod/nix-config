@@ -140,10 +140,19 @@ in
     browsing = true; # Enable printer browsing
     defaultShared = true; # Share all printers by default
   };
-  services.avahi = { # Printers & AirPlay AutoDiscovery
+  services.avahi = { # Printers discovery (Apple streaming disabled)
     enable = true;
     nssmdns4 = true;
     openFirewall = true;
+    # Disable Apple streaming/AirPlay features
+    publish = {
+      enable = false;      # Don't advertise this machine
+      userServices = false; # Don't publish user services (AirPlay receivers)
+      addresses = false;   # Don't publish addresses
+      hinfo = false;       # Don't publish hardware info
+      workstation = false; # Don't publish workstation service
+    };
+    reflector = false;     # Don't reflect mDNS (used by AirPlay across subnets)
   };
   # Enable sound.
   # hardware.pulseaudio.enable = true;
