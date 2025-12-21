@@ -57,12 +57,14 @@ in
 
   networking.hostName = "rocinante"; # hostname.
 
-  networking.networkmanager.enable = true;  # Easiest to use and most distros use this by default.
+  networking.networkmanager = {
+    enable = true;  # Easiest to use and most distros use this by default.
+    dns = "dnsmasq";  # Use dnsmasq for DNS resolution (works with Tailscale MagicDNS)
+  };
   # Unlock Integrated Modem
   networking.modemmanager.fccUnlockScripts = [ {id = "1eac:1001"; path = "${pkgs.modemmanager}/share/ModemManager/fcc-unlock.available.d/1eac:1001";} ];
   networking.timeServers = [ "timeserver.iix.net.il" ]; # Items in list seperated by space e.g.: [ "time.cloudflare.com" "time.example.com" ];
 
-  # TODO: set [main] dns=dnsmasq (instead of internal)
   # networking.dhcpcd.extraConfig = ''
   # interface enp*
   # metric 100

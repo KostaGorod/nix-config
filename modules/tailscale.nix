@@ -7,19 +7,30 @@
     package = pkgs.tailscale;
   };
 
-  # Fix DNS resolution conflicts with MagicDNS
-  networking.resolvconf.useLocalResolver = false;
+  # Enable local DNS resolver
+  networking.resolvconf.useLocalResolver = true;
 
-  # Configure dnsmasq to work with Tailscale MagicDNS
+  # Configure dnsmasq to work with Tailscale MagicDNS (split DNS)
   services.dnsmasq = {
     enable = true;
     settings = {
-      # Listen on localhost and Tailscale interface
+      # Listen on localhost
       listen-address = "127.0.0.1";
       # Bind to specific interfaces to prevent conflicts
       bind-interfaces = true;
       # Cache size for better performance
       cache-size = "1000";
+      # Default upstream DNS servers for regular queries (Cloudflare and Google)
+      server = [
+        "1.1.1.1"
+        "8.8.8.8"
+        # Route Tailscale domains to MagicDNS
+        "/myth-rudd.ts.net/100.100.100.100"
+        "/int.toxiclabs.net/100.100.100.100"
+        "/toxiclabs.local.lan/100.100.100.100"
+      ];
+      # Strict order - use servers in the order specified
+      strict-order = true;
     };
   };
 
