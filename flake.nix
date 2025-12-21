@@ -37,12 +37,20 @@
       # Don't follow our nixpkgs to avoid unnecessary downloads
     };
 
+    # Antigravity IDE (Google's AI-powered development environment)
+    # Local wrapper around jacopone/antigravity-nix for easy updates
+    antigravity-fhs = {
+      url = "path:flakes/antigravity-fhs";
+      # Don't follow our nixpkgs to avoid unnecessary downloads
+      # The antigravity flake manages its own nixpkgs dependency
+    };
+
     # mikrotikDevEnv = {
     #   url = "path:environments/mikrotik";
     #   inputs.nixpkgs.follows = "nixpkgs";
     # };
   };
-  outputs = inputs@{ self, nixpkgs, nixpkgs-unstable, nixos-hardware, home-manager, disko, zen-browser, nix-ai-tools, warp-fhs, ... }:
+  outputs = inputs@{ self, nixpkgs, nixpkgs-unstable, nixos-hardware, home-manager, disko, zen-browser, nix-ai-tools, warp-fhs, antigravity-fhs, ... }:
   # let
 
   # in
