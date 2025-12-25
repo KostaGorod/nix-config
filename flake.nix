@@ -2,7 +2,7 @@
   description = "KostaGorod's Nixos configuration";
   inputs = {
     # core
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05"; # NOTE: Replace "nixos-24.05" with that which is in system.stateVersion of configuration.nix. You can also use later versions.
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11"; # NOTE: Replace "nixos-24.05" with that which is in system.stateVersion of configuration.nix. You can also use later versions.
     nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
 
     # hardware
@@ -14,7 +14,7 @@
 
     # Home-manager
     home-manager = {
-      url = "github:nix-community/home-manager/release-25.05";
+      url = "github:nix-community/home-manager/release-25.11";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 

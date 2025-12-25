@@ -6,7 +6,7 @@
 { inputs, config, lib, pkgs, options, ... }:
 let
   pkgs-unstable = import inputs.nixpkgs-unstable {
-    system = pkgs.system;
+    system = pkgs.stdenv.hostPlatform.system;
     config.allowUnfree = true;
   };
 in
@@ -28,6 +28,7 @@ in
     ../../modules/opencode.nix # OpenCode AI coding agent
     ../../modules/claude-code.nix # Claude Code CLI
     # ../../modules/codex.nix # Numtide Codex AI assistant (temporarily disabled)
+    ../../modules/bitwarden.nix # Bitwarden password manager (unstable)
 
     #"${pkgs-stable.path}/nixos/modules/config/networking.nix"
     #"${pkgs-stable.path}/nixos/modules/services/networking/networkmanager.nix"
@@ -59,7 +60,7 @@ in
 
   networking.networkmanager = {
     enable = true;  # Easiest to use and most distros use this by default.
-    dns = "dnsmasq";  # Use dnsmasq for DNS resolution (works with Tailscale MagicDNS)
+    dns = "none";  # Use standalone dnsmasq.service from tailscale.nix module
   };
   # Unlock Integrated Modem
   networking.modemmanager.fccUnlockScripts = [ {id = "1eac:1001"; path = "${pkgs.modemmanager}/share/ModemManager/fcc-unlock.available.d/1eac:1001";} ];
@@ -239,18 +240,23 @@ services.tlp = {
   # Enable Abacus.AI DeepAgent desktop client and CLI
   programs.abacusai.enable = true;
 
+  # Enable Bitwarden password manager (from nixpkgs-unstable)
+  programs.bitwarden.enable = true;
+
   # users.users.kosta.extraGroups = lib.mkAfter ["adbusers"];
   # Define a user account. Don't forget to set a password with ‘passwd’.
   users.users.kosta = {
     isNormalUser = true;
     extraGroups = [ "wheel" "networkmanager" "docker" "adbusers" ]; # Enable 'sudo' for the user. # Enable manage access to NetworkManager
-    shell = pkgs.nushell;
+    shell = pkgs.bash;
     packages = with pkgs; [
       # Antigravity IDE (Google AI-powered development environment)
-      inputs.antigravity-fhs.packages.${pkgs.system}.default
+      inputs.antigravity-fhs.packages.${pkgs.stdenv.hostPlatform.system}.default
       pkgs-unstable.uv
       # Warp terminal with FHS environment for full system access
-      inputs.warp-fhs.packages.${pkgs.system}.default
+      inputs.warp-fhs.packages.${pkgs.stdenv.hostPlatform.system}.default
+      # Native Warp terminal without FHS sandbox (allows normal sudo)
+      warp-terminal
       _1password-gui
       firefox
       kdePackages.kdeconnect-kde
@@ -258,7 +264,7 @@ services.tlp = {
       pciutils
       remmina #rdp client
       code-cursor
-      onlyoffice-bin_latest
+      onlyoffice-desktopeditors
       #
       # modified Vivaldi package for native wayland support, also fixes crash in plasma6
       # ((vivaldi.overrideAttrs (oldAttrs: {
@@ -303,14 +309,14 @@ services.tlp = {
       name = "antigravity";
       desktopName = "Antigravity IDE";
       comment = "Google Antigravity AI-powered development environment";
-      exec = "${inputs.antigravity-fhs.packages.${pkgs.system}.default}/bin/antigravity %U";
+      exec = "${inputs.antigravity-fhs.packages.${pkgs.stdenv.hostPlatform.system}.default}/bin/antigravity %U";
       icon = "code";
       terminal = false;
       type = "Application";
       categories = [ "Development" "IDE" ];
     })
     (writeShellScriptBin "antigravity" ''
-      exec ${inputs.antigravity-fhs.packages.${pkgs.system}.default}/bin/antigravity "$@"
+      exec ${inputs.antigravity-fhs.packages.${pkgs.stdenv.hostPlatform.system}.default}/bin/antigravity "$@"
     '')
 
     # Shells
