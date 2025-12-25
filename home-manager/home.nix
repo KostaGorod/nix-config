@@ -1,7 +1,7 @@
 { config, pkgs, lib, specialArgs, inputs, ... }:
 let
   pkgs-unstable = import inputs.nixpkgs-unstable {
-    system = pkgs.system;
+    system = pkgs.stdenv.hostPlatform.system;
     config.allowUnfree = true;
   };
   inherit (specialArgs) hostname role;

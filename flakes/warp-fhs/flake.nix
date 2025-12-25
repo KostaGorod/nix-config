@@ -9,7 +9,7 @@
     let
       system = "x86_64-linux";
       pkgs = import nixpkgs {
-        inherit system;
+        stdenv.hostPlatform.system = system;
         config.allowUnfree = true;
       };
     in {
