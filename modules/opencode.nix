@@ -5,7 +5,7 @@ let
 
   # Import from nix-ai-tools
   nix-ai-tools = inputs.nix-ai-tools;
-  opencode-pkg = nix-ai-tools.packages.${pkgs.system}.opencode;
+  opencode-pkg = nix-ai-tools.packages.${pkgs.stdenv.hostPlatform.system}.opencode;
 in
 {
   options.programs.opencode = {

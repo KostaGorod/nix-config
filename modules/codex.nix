@@ -5,7 +5,7 @@ let
 
   # Import from nix-ai-tools
   nix-ai-tools = inputs.nix-ai-tools;
-  codex-pkg = nix-ai-tools.packages.${pkgs.system}.codex;
+  codex-pkg = nix-ai-tools.packages.${pkgs.stdenv.hostPlatform.system}.codex;
 in
 {
   options.programs.codex = {

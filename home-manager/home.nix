@@ -149,9 +149,9 @@ in
   programs.git = {
     package = pkgs.gitFull;
     enable = true;
-    userName = "Kosta Gorod";
-    userEmail = "korolx147@gmail.com";
-    extraConfig = {
+    settings = {
+      user.name = "Kosta Gorod";
+      user.email = "korolx147@gmail.com";
       credential.helper = lib.mkBefore [ "${pkgs.gitFull.override { withLibsecret = true; }}/bin/git-credential-libsecret" ];
     };
   };

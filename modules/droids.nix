@@ -5,7 +5,7 @@ let
 
   # Import from nix-ai-tools
   nix-ai-tools = inputs.nix-ai-tools;
-  droids-pkg = nix-ai-tools.packages.${pkgs.system}.droid;
+  droids-pkg = nix-ai-tools.packages.${pkgs.stdenv.hostPlatform.system}.droid;
 in
 {
   options.programs.droids = {
