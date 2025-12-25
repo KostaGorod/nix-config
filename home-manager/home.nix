@@ -89,7 +89,7 @@ in
 
     # productivity
     glow # markdown previewer in terminal
-    openterface-qt # GUI for openface KVM
+    pkgs-unstable.openterface-qt # GUI for openterface KVM
 
 
     # k8s and stuff
@@ -120,7 +120,7 @@ in
       userSettings = {
         "window.titleBarStyle" = "custom"; # Use Vscode's TitleBarStyle instead of ugly wayland's
         "workbench.colorTheme" = "Tokyo Night Storm"; #apply theme
-
+      };
       extensions = with pkgs-unstable; [
         # theme
         vscode-extensions.enkia.tokyo-night
@@ -141,8 +141,6 @@ in
         vscode-extensions.ms-pyright.pyright
         vscode-extensions.ms-python.black-formatter # Black Formatter
       ];
-    };
-
     };
 
   };
@@ -219,9 +217,10 @@ in
   };
 
 
-# NuShell - Shell
-  programs.nushell = {
+  # Bash shell with starship prompt
+  programs.bash = {
     enable = true;
+    enableCompletion = true;
     shellAliases = {
       l = "ls";
       ll = "ls -la";
@@ -230,46 +229,22 @@ in
       gl = "git log";
       g = "git";
       k = "kubectl";
-
     };
-    extraConfig = ''
-      ####
-     # let carapace_completer = {|spans|
-     # carapace $spans.0 nushell $spans | from json
-     # }
-     $env.config = {
-      show_banner: false,
-      completions: {
-      case_sensitive: false # case-sensitive completions
-      quick: true    # set to false to prevent auto-selecting completions
-      partial: true    # set to false to prevent partial filling of the prompt
-      algorithm: "fuzzy"    # prefix or fuzzy
-      # external: {
-    #   # set to false to prevent nushell looking into $env.PATH to find more suggestions
-          # enable: true
-    #   # set to lower can improve completion performance at the cost of omitting some options
-          # max_results: 100
-          # completer: $carapace_completer # check 'carapace_completer'
-        # }
-      }
-     }
-     $env.PATH = ($env.PATH |
-     split row (char esep) |
-     prepend /home/myuser/.apps |
-     append /usr/bin/env
-     )
-
-
-    ########
+    bashrcExtra = ''
+      export PATH="$PATH:$HOME/bin:$HOME/.local/bin"
     '';
-
-
-
   };
 
+  # Carapace - multi-shell completion engine
   programs.carapace = {
     enable = true;
-    enableNushellIntegration = true;
+    enableBashIntegration = true;
+  };
+
+  # SSH agent for key management (needed by Abacus, VS Code, etc.)
+  services.ssh-agent = {
+    enable = true;
+    enableBashIntegration = true;
   };
 
   # Home-manager's zed produces read only `settings.json`, which limits features as changing models or settings at runtime.
