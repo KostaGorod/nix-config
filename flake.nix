@@ -82,6 +82,7 @@
         {
           home-manager.useGlobalPkgs = true; # makes home-manager follow nixos's pkgs value
           home-manager.useUserPackages = true;
+          home-manager.backupFileExtension = "backup"; # Backup existing files that conflict with home-manager
           home-manager.users.kosta = import ./home-manager/home.nix;
 
           # pass arguments to home.nix

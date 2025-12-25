@@ -5,7 +5,7 @@ let
 
   # Import from nix-ai-tools
   nix-ai-tools = inputs.nix-ai-tools;
-  claude-code-pkg = nix-ai-tools.packages.${pkgs.system}.claude-code;
+  claude-code-pkg = nix-ai-tools.packages.${pkgs.stdenv.hostPlatform.system}.claude-code;
 in
 {
   options.programs.claude-code = {
