@@ -243,6 +243,13 @@ services.tlp = {
   # Enable Bitwarden password manager (from nixpkgs-unstable)
   programs.bitwarden.enable = true;
 
+  # Enable direnv with nix-direnv integration (from unstable)
+  programs.direnv = {
+    enable = true;
+    package = pkgs-unstable.direnv;
+    nix-direnv.enable = true;
+  };
+
   # users.users.kosta.extraGroups = lib.mkAfter ["adbusers"];
   # Define a user account. Don't forget to set a password with ‘passwd’.
   users.users.kosta = {
@@ -334,6 +341,7 @@ services.tlp = {
     maliit-framework
 
     # devops tools
+    devenv
     kind
     nix-update # Tool for updating nix packages
     #
