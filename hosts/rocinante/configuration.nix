@@ -61,6 +61,7 @@ in
   networking.networkmanager = {
     enable = true;  # Easiest to use and most distros use this by default.
     dns = "none";  # Use standalone dnsmasq.service from tailscale.nix module
+    plugins = [ pkgs.networkmanager-openvpn ];  # OpenVPN support in NetworkManager
   };
   # Unlock Integrated Modem
   networking.modemmanager.fccUnlockScripts = [ {id = "1eac:1001"; path = "${pkgs.modemmanager}/share/ModemManager/fcc-unlock.available.d/1eac:1001";} ];
