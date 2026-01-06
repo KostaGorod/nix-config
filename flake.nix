@@ -50,12 +50,17 @@
       url = "path:flakes/abacusai-fhs";
     };
 
+    # Vibe Kanban - AI coding agent orchestration tool
+    vibe-kanban = {
+      url = "path:flakes/vibe-kanban";
+    };
+
     # mikrotikDevEnv = {
     #   url = "path:environments/mikrotik";
     #   inputs.nixpkgs.follows = "nixpkgs";
     # };
   };
-  outputs = inputs@{ self, nixpkgs, nixpkgs-unstable, nixos-hardware, home-manager, disko, zen-browser, nix-ai-tools, warp-fhs, antigravity-fhs, abacusai-fhs, ... }:
+  outputs = inputs@{ self, nixpkgs, nixpkgs-unstable, nixos-hardware, home-manager, disko, zen-browser, nix-ai-tools, warp-fhs, antigravity-fhs, abacusai-fhs, vibe-kanban, ... }:
   # let
 
   # in
@@ -97,6 +102,9 @@
         ./modules/moonlight-qt.nix
         ./modules/droids.nix
         ./modules/abacusai.nix
+
+        # Vibe Kanban service (module from flake)
+        vibe-kanban.nixosModules.default
 
       ];
     };
