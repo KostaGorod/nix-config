@@ -101,6 +101,7 @@
 
         # others
         ./de/plasma6.nix
+        ./de/cosmic.nix
         ./modules/utils.nix
         ./modules/editors.nix
         ./modules/spotify.nix
