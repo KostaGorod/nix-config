@@ -157,6 +157,12 @@ in
   };
   programs.git-credential-oauth.enable = true;
 
+  # GitHub CLI - uses git's credential helper for auth
+  programs.gh = {
+    enable = true;
+    gitCredentialHelper.enable = true;
+  };
+
   # # starship - an customizable prompt for any shell
   programs.starship = {
     enable = true;
