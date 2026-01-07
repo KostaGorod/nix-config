@@ -55,12 +55,17 @@
       url = "path:flakes/vibe-kanban";
     };
 
+    # Ultimate Bug Scanner - Industrial-grade static analysis
+    ultimate-bug-scanner = {
+      url = "github:Dicklesworthstone/ultimate_bug_scanner";
+    };
+
     # mikrotikDevEnv = {
     #   url = "path:environments/mikrotik";
     #   inputs.nixpkgs.follows = "nixpkgs";
     # };
   };
-  outputs = inputs@{ self, nixpkgs, nixpkgs-unstable, nixos-hardware, home-manager, disko, zen-browser, nix-ai-tools, warp-fhs, antigravity-fhs, abacusai-fhs, vibe-kanban, ... }:
+  outputs = inputs@{ self, nixpkgs, nixpkgs-unstable, nixos-hardware, home-manager, disko, zen-browser, nix-ai-tools, warp-fhs, antigravity-fhs, abacusai-fhs, vibe-kanban, ultimate-bug-scanner, ... }:
   # let
 
   # in
@@ -105,7 +110,6 @@
 
         # Vibe Kanban service (module from flake)
         vibe-kanban.nixosModules.default
-
       ];
     };
   };
