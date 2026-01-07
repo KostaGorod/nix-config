@@ -1,4 +1,4 @@
-{ config, pkgs, inputs, ... }:
+{ config, pkgs, ... }:
 {
   environment.systemPackages = with pkgs; [
     zip
@@ -36,9 +36,6 @@
     ethtool
     pciutils # lspci
     usbutils # lsusb
-
-    # dev tools
-    inputs.ultimate-bug-scanner.packages.${pkgs.stdenv.hostPlatform.system}.default # ubs - static analysis
   ];
 
 }
