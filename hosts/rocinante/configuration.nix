@@ -384,6 +384,8 @@ services.tlp = {
     # Laptop specific tools
     libqmi
 
+    # Ultimate Bug Scanner - static analysis tool
+    inputs.ultimate-bug-scanner.packages.${pkgs.stdenv.hostPlatform.system}.default
   ];
   services.teamviewer.enable = true;
 
