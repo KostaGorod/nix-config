@@ -24,8 +24,8 @@
       server = [
         "1.1.1.1"
         "8.8.8.8"
-        # Route Tailscale domains to MagicDNS
-        "/myth-rudd.ts.net/100.100.100.100"
+        # Route all Tailscale domains to MagicDNS (covers all tailnets)
+        "/ts.net/100.100.100.100"
         "/int.toxiclabs.net/100.100.100.100"
         "/toxiclabs.local.lan/100.100.100.100"
       ];
