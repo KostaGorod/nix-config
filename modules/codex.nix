@@ -1,10 +1,16 @@
-{ config, lib, pkgs, inputs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  inputs,
+  ...
+}:
 
 let
   cfg = config.programs.codex;
 
   # Import from nix-ai-tools
-  nix-ai-tools = inputs.nix-ai-tools;
+  inherit (inputs) nix-ai-tools;
   codex-pkg = nix-ai-tools.packages.${pkgs.stdenv.hostPlatform.system}.codex;
 in
 {
