@@ -1,10 +1,12 @@
-{ config, pkgs, ... }:
+_:
 
 {
   services = {
-    # Plasma6 desktop - session available via cosmic-greeter
+    displayManager.sddm.enable = true;
+    displayManager.sddm.wayland.enable = true;
+
     desktopManager.plasma6.enable = true;
-    desktopManager.plasma6.enableQt5Integration = true; # disable for qt6 full version
+    desktopManager.plasma6.enableQt5Integration = true; # disable for qt6 full version;
   };
 
   # programs.dconf.enable = true; # for GNOME, currently using KDE
