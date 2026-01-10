@@ -39,7 +39,6 @@
     };
 
     # Local flakes
-    warp-fhs.url = "path:flakes/warp-fhs";
     antigravity-fhs.url = "path:flakes/antigravity-fhs";
     abacusai-fhs.url = "path:flakes/abacusai-fhs";
     vibe-kanban.url = "path:flakes/vibe-kanban";
@@ -61,19 +60,19 @@
         inputs.treefmt-nix.flakeModule
       ];
 
-      perSystem =
-        _:
-        {
-          # Formatter configuration
-          treefmt = {
-            projectRootFile = "flake.nix";
-            programs = {
-              nixfmt.enable = true;
-              deadnix.enable = true;
-              statix.enable = true;
-            };
+      perSystem = _: {
+        # Formatter configuration
+        treefmt = {
+          projectRootFile = "flake.nix";
+          # Exclude nested flakes (they have their own formatting rules)
+          settings.excludes = [ "flakes/**" ];
+          programs = {
+            nixfmt.enable = true;
+            deadnix.enable = true;
+            statix.enable = true;
           };
         };
+      };
 
       flake = {
         # NixOS configurations

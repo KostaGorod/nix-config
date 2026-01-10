@@ -36,7 +36,6 @@ in
     slack
 
     # Terminals & Tools
-    inputs.warp-fhs.packages.${pkgs.stdenv.hostPlatform.system}.default
     warp-terminal
     inputs.antigravity-fhs.packages.${pkgs.stdenv.hostPlatform.system}.default
     pkgs-unstable.uv
