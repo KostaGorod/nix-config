@@ -6,7 +6,7 @@
   };
 
   outputs =
-    { nixpkgs }:
+    { self, nixpkgs }:
     let
       system = "x86_64-linux";
       pkgs = import nixpkgs {
@@ -159,7 +159,7 @@
     in
     {
       packages.${system} = {
-        default = abacusai-fhs;
+        default = self.packages.${system}.gui;
         gui = abacusai-fhs;
         cli = abacusai-cli-fhs;
       };
@@ -167,11 +167,11 @@
       apps.${system} = {
         default = {
           type = "app";
-          program = "${abacusai-fhs}/bin/abacusai";
+          program = "${self.packages.${system}.gui}/bin/abacusai";
         };
         cli = {
           type = "app";
-          program = "${abacusai-cli-fhs}/bin/abacusai-cli";
+          program = "${self.packages.${system}.cli}/bin/abacusai-cli";
         };
       };
     };
