@@ -60,7 +60,7 @@
         inputs.treefmt-nix.flakeModule
       ];
 
-      perSystem = _: {
+      perSystem = { config, self', pkgs, system, ... }: {
         # Formatter configuration
         treefmt = {
           projectRootFile = "flake.nix";
@@ -71,6 +71,45 @@
             deadnix.enable = true;
             statix.enable = true;
           };
+        };
+
+        # CI checks
+        checks = {
+          # Formatting check
+          treefmt = config.treefmt.build.check self';
+
+          # Critical host configuration evaluation (Priority 1-3)
+          rocinante = self'.nixosConfigurations.rocinante.config.system.build.toplevel;
+
+          # Module evaluation tests (Priority 1-2)
+          # Test that modules can be evaluated independently
+          eval-modules = pkgs.runCommand "eval-modules" { } ''
+            ${pkgs.nix}/bin/nix eval --raw --expr '
+              let
+                lib = import ${pkgs.path}/share/nixpkgs/lib;
+                modules = [
+                  ./modules/nixos/services.nix
+                  ./modules/nixos/tailscale.nix
+                  ./modules/nixos/desktop.nix
+                  ./modules/nixos/utils.nix
+                ];
+              in
+                builtins.length (lib.evalModules { inherit modules; }).config)
+            ' > /dev/null
+            touch $out
+          '';
+
+          # Test that critical files exist and are valid Nix
+          file-existence = pkgs.runCommand "check-critical-files" { } ''
+            ${pkgs.nix}/bin/nix-instantiate --parse --expr 'import ./modules/nixos/services.nix' > /dev/null
+            ${pkgs.nix}/bin/nix-instantiate --parse --expr 'import ./modules/nixos/tailscale.nix' > /dev/null
+            ${pkgs.nix}/bin/nix-instantiate --parse --expr 'import ./modules/nixos/utils.nix' > /dev/null
+            ${pkgs.nix}/bin/nix-instantiate --parse --expr 'import ./modules/nixos/desktop.nix' > /dev/null
+            touch $out
+          '';
+
+          # Home Manager configuration evaluation (Priority 4)
+          home-manager = self'.nixosConfigurations.rocinante.config.home-manager.users.kosta.home.activationPackage;
         };
       };
 
