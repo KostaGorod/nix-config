@@ -113,5 +113,18 @@
         vibe-kanban.nixosModules.default
       ];
     };
+    nixosConfigurations.gpu-node-1 = nixpkgs.lib.nixosSystem {
+      specialArgs = { inherit inputs; };
+      modules = [
+        ./hosts/gpu-node-1/configuration.nix
+        # home-manager.nixosModules.home-manager
+        # {
+        #   home-manager.useGlobalPkgs = true;
+        #   home-manager.useUserPackages = true;
+        #   home-manager.users.kosta = import ./home-manager/home.nix;
+        #   home-manager.extraSpecialArgs = { inherit inputs; };
+        # }
+      ];
+    };
   };
 }
