@@ -108,10 +108,22 @@
         ./modules/moonlight-qt.nix
         ./modules/droids.nix
         ./modules/abacusai.nix
+        ./modules/memvid.nix
 
         # Vibe Kanban service (module from flake)
         vibe-kanban.nixosModules.default
       ];
+    };
+
+    # Add packages to the flake
+    packages.x86_64-linux.memvid = let 
+      pkgs = import nixpkgs { system = "x86_64-linux"; };
+    in pkgs.callPackage ./pkgs/memvid/default.nix { };
+
+    devShells.x86_64-linux.default = let
+      pkgs = import nixpkgs { system = "x86_64-linux"; };
+    in pkgs.mkShell {
+      buildInputs = [ self.packages.x86_64-linux.memvid ];
     };
   };
 }

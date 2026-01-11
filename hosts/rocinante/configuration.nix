@@ -232,6 +232,9 @@ services.tlp = {
   # Enable Anthropic Claude Code CLI
   programs.claude-code.enable = true;
 
+  # Enable Memvid local-first semantic search
+  services.memvid.enable = true;
+
   # Enable Numtide Codex AI assistant (temporarily disabled)
   # programs.codex.enable = true;
 

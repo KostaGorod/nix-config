@@ -1,0 +1,301 @@
+#!/usr/bin/env python3
+import os
+import sys
+import subprocess
+import json
+import argparse
+import hashlib
+from pathlib import Path
+
+MEMVID_DIR = Path(".memvid")
+INDEX_PATH = MEMVID_DIR / "index.mv2"
+STATE_PATH = MEMVID_DIR / "state.json"
+GITIGNORE_PATH = Path(".gitignore")
+
+def run_command(cmd, capture_output=True, check=True):
+    try:
+        result = subprocess.run(cmd, capture_output=capture_output, text=True, check=check)
+        return result.stdout.strip()
+    except subprocess.CalledProcessError as e:
+        if capture_output:
+            print(f"Error: {e.stderr}", file=sys.stderr)
+        raise e
+
+def init_repo(args):
+    if not MEMVID_DIR.exists():
+        MEMVID_DIR.mkdir(parents=True)
+        print(f"Created {MEMVID_DIR}")
+    
+    # Check gitignore
+    if GITIGNORE_PATH.exists():
+        with open(GITIGNORE_PATH, "r") as f:
+            content = f.read()
+            if ".memvid/" not in content:
+                with open(GITIGNORE_PATH, "a") as af:
+                    af.write("\n# Memvid artifacts\n.memvid/\n")
+                print(f"Added .memvid/ to {GITIGNORE_PATH}")
+    else:
+        with open(GITIGNORE_PATH, "w") as f:
+            f.write(".memvid/\n")
+        print(f"Created {GITIGNORE_PATH} and added .memvid/")
+
+    if not INDEX_PATH.exists():
+        # Default create with lex only for local-first efficiency
+        cmd = ["memvid", "create", str(INDEX_PATH), "--no-vector"]
+        print(f"Initializing Memvid index: {' '.join(cmd)}")
+        run_command(cmd)
+
+def get_file_hash(path):
+    hasher = hashlib.sha256()
+    with open(path, "rb") as f:
+        while chunk := f.read(8192):
+            hasher.update(chunk)
+    return hasher.hexdigest()
+
+def index_repo(args):
+    init_repo(args)
+    
+    # Get tracked files
+    files = run_command(["git", "ls-files"]).splitlines()
+    if args.include_untracked:
+        try:
+            untracked = run_command(["git", "ls-files", "-o", "--exclude-standard"]).splitlines()
+            files.extend(untracked)
+        except:
+            pass
+
+    # Filtering (simple extension check for now)
+    TEXT_EXTS = {'.py', '.js', '.ts', '.tsx', '.jsx', '.nix', '.md', '.txt', '.sh', '.rs', '.go', '.c', '.cpp', '.h', '.yml', '.yaml', '.json'}
+    files_to_index = [f for f in files if Path(f).suffix in TEXT_EXTS and os.path.isfile(f)]
+
+    # Load state
+    state = {}
+    if STATE_PATH.exists():
+        with open(STATE_PATH, "r") as f:
+            try:
+                state = json.load(f)
+            except:
+                state = {}
+
+    new_state = {"files": {}, "git_head": ""}
+    try:
+        new_state["git_head"] = run_command(["git", "rev-parse", "HEAD"])
+    except:
+        pass
+    
+    changed_files = []
+    for f in files_to_index:
+        try:
+            f_hash = get_file_hash(f)
+            new_state["files"][f] = f_hash
+            if state.get("files", {}).get(f) != f_hash:
+                changed_files.append(f)
+        except:
+            continue
+
+    if not changed_files:
+        print("Index is up to date.")
+        return
+
+    print(f"Indexing {len(changed_files)} changed files...")
+    for f in changed_files:
+        cmd = ["memvid", "put", str(INDEX_PATH), "--input", f, "--lock-timeout", str(args.lock_timeout)]
+        try:
+            run_command(cmd)
+        except Exception as e:
+            print(f"Failed to index {f}: {e}")
+
+    with open(STATE_PATH, "w") as f:
+        json.dump(new_state, f, indent=2)
+    print("Indexing complete.")
+
+def search_repo(args):
+    cmd = ["memvid", "find", str(INDEX_PATH), "--query", args.query, "--mode", args.mode, "--top-k", str(args.top_k)]
+    if args.json:
+        cmd.append("--json")
+    
+    print(run_command(cmd, capture_output=False, check=False))
+
+def ask_repo(args):
+    cmd = ["memvid", "ask", str(INDEX_PATH), "--question", args.question, "--use-model", args.model]
+    if args.json:
+        cmd.append("--json")
+    print(run_command(cmd, capture_output=False, check=False))
+
+def status_repo(args):
+    if not INDEX_PATH.exists():
+        print("Index does not exist. Run 'repo-mem init' or 'repo-mem index'.")
+        return
+    
+    print(f"Index Path: {INDEX_PATH}")
+    if STATE_PATH.exists():
+        with open(STATE_PATH, "r") as f:
+            state = json.load(f)
+            print(f"Last Indexed Commit: {state.get('git_head', 'N/A')}")
+            print(f"Indexed Files: {len(state.get('files', {}))}")
+    
+    size_bytes = INDEX_PATH.stat().st_size
+    print(f"Index Size: {size_bytes / (1024*1024):.2f} MB")
+
+def clean_repo(args):
+    if INDEX_PATH.exists():
+        INDEX_PATH.unlink()
+        print(f"Removed {INDEX_PATH}")
+    if STATE_PATH.exists():
+        STATE_PATH.unlink()
+        print(f"Removed {STATE_PATH}")
+
+def visualize_repo(args):
+    # MVP Visualization: File tree and module counts
+    print("Generating repo visualization...")
+    
+    # 1. Repo Map (File Tree)
+    files = run_command(["git", "ls-files"]).splitlines()
+    tree = {}
+    for f in files:
+        parts = Path(f).parts
+        curr = tree
+        for p in parts:
+            if p not in curr: curr[p] = {}
+            curr = curr[p]
+    
+    def dict_to_mermaid(d, indent=0):
+        res = ""
+        for k, v in d.items():
+            res += "  " * indent + f"- {k}\n"
+            res += dict_to_mermaid(v, indent + 1)
+        return res
+
+    repo_map = f"## Repo Map\n\n```\n{dict_to_mermaid(tree)}```"
+    
+    # 2. Language Stats
+    langs = {}
+    for f in files:
+        ext = Path(f).suffix
+        langs[ext] = langs.get(ext, 0) + 1
+    
+    lang_stats = "## Language Stats\n\n" + "\n".join([f"- {ext or 'no-ext'}: {count}" for ext, count in sorted(langs.items(), key=lambda x: x[1], reverse=True)])
+
+    visual_doc = f"{repo_map}\n\n{lang_stats}"
+    
+    # Store in Memvid as an artifact
+    temp_visual = MEMVID_DIR / "visual.md"
+    with open(temp_visual, "w") as f:
+        f.write(visual_doc)
+    
+    cmd = ["memvid", "put", str(INDEX_PATH), "--input", str(temp_visual), "--title", "repo-visualization", "--tag", "visualization"]
+    run_command(cmd)
+    temp_visual.unlink()
+    
+    print("Visualization stored in index.")
+    if not args.silent:
+        print(visual_doc)
+
+def ensure_repo(args):
+    if not INDEX_PATH.exists():
+        index_repo(args)
+        return
+
+    # Check if git head matches
+    try:
+        current_head = run_command(["git", "rev-parse", "HEAD"])
+        if STATE_PATH.exists():
+            with open(STATE_PATH, "r") as f:
+                state = json.load(f)
+                if state.get("git_head") == current_head:
+                    print("Index is already fresh.")
+                    return
+    except:
+        pass
+    
+    # Try to index with a short timeout
+    args.lock_timeout = 250 # Short timeout for "ensure"
+    try:
+        index_repo(args)
+    except Exception as e:
+        print(f"Index busy or failed; using existing index. ({e})")
+
+def show_visual(args):
+    cmd = ["memvid", "find", str(INDEX_PATH), "--query", "repo-visualization", "--top-k", "1", "--json"]
+    try:
+        output = run_command(cmd)
+        data = json.loads(output)
+        if data and len(data) > 0:
+            # Memvid results often have content in 'text' or 'content' field
+            content = data[0].get("text") or data[0].get("content")
+            if content:
+                print(content)
+            else:
+                print("Visualization artifact found but content is empty.")
+        else:
+            print("No visualization found. Run 'repo-mem visualize' first.")
+    except Exception as e:
+        print(f"Error retrieving visualization: {e}")
+
+def main():
+    parser = argparse.ArgumentParser(description="Repo-Mem: Memvid-powered codebase search")
+    subparsers = parser.add_subparsers(dest="command")
+
+    # Init
+    subparsers.add_parser("init")
+
+    # Index
+    idx_parser = subparsers.add_parser("index")
+    idx_parser.add_argument("--include-untracked", action="store_true")
+    idx_parser.add_argument("--lock-timeout", type=int, default=5000)
+
+    # Ensure
+    ens_parser = subparsers.add_parser("ensure")
+    ens_parser.add_argument("--include-untracked", action="store_true")
+
+    # Search
+    search_parser = subparsers.add_parser("search")
+    search_parser.add_argument("query")
+    search_parser.add_argument("--mode", default="auto")
+    search_parser.add_argument("--top-k", type=int, default=5)
+    search_parser.add_argument("--json", action="store_true")
+
+    # Ask
+    ask_parser = subparsers.add_parser("ask")
+    ask_parser.add_argument("question")
+    ask_parser.add_argument("--model", default="ollama:qwen2.5:1.5b")
+    ask_parser.add_argument("--json", action="store_true")
+
+    # Status
+    subparsers.add_parser("status")
+
+    # Clean
+    subparsers.add_parser("clean")
+
+    # Visualize
+    vis_parser = subparsers.add_parser("visualize")
+    vis_parser.add_argument("--silent", action="store_true")
+
+    # Show
+    subparsers.add_parser("show")
+
+    args = parser.parse_args()
+
+    if args.command == "init":
+        init_repo(args)
+    elif args.command == "index":
+        index_repo(args)
+    elif args.command == "ensure":
+        ensure_repo(args)
+    elif args.command == "search":
+        search_repo(args)
+    elif args.command == "ask":
+        ask_repo(args)
+    elif args.command == "status":
+        status_repo(args)
+    elif args.command == "clean":
+        clean_repo(args)
+    elif args.command == "visualize":
+        visualize_repo(args)
+    elif args.command == "show":
+        show_visual(args)
+    else:
+        parser.print_help()
+
+if __name__ == "__main__":
+    main()
