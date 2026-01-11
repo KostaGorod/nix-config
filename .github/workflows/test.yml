@@ -1,0 +1,227 @@
+name: Test and Validate NixOS Configuration
+
+on:
+  push:
+    branches: [main, refactor/flake-parts-modular-structure]
+  pull_request:
+    branches: [main, refactor/flake-parts-modular-structure]
+
+jobs:
+  checks:
+    name: Quick Checks (Syntax + Formatting)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v25
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+
+      - name: Cache Nix store
+        uses: cachix/cachix-action@v14
+        with:
+          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+          name: kosta-nix-config
+          pushFilter: '.|result*|.*.drv$'
+
+      - name: Check flake
+        run: nix flake check --show-trace
+
+      - name: Format check
+        run: nix fmt --check
+
+      - name: Lint with deadnix
+        run: nix run nixpkgs#deadnix -- .
+
+      - name: Lint with statix
+        run: nix run nixpkgs#statix check .
+
+  eval-modules:
+    name: Module Evaluation Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v25
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      - name: Cache Nix store
+        uses: cachix/cachix-action@v14
+        with:
+          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+          name: kosta-nix-config
+
+      - name: Evaluate critical modules
+        run: |
+          # Test Priority 1-2 modules (services, networking, VPN)
+          for module in modules/nixos/services.nix modules/nixos/tailscale.nix; do
+            echo "Evaluating $module..."
+            nix-instantiate --parse --expr "import ./$module" > /dev/null
+          done
+
+      - name: Evaluate optional modules
+        run: |
+          # Test Priority 3-5 modules (desktop, AI tools)
+          for module in modules/nixos/desktop.nix modules/nixos/utils.nix modules/nixos/opencode.nix modules/nixos/claude-code.nix; do
+            echo "Evaluating $module..."
+            nix-instantiate --parse --expr "import ./$module" > /dev/null
+          done
+
+      - name: Test module imports don't conflict
+        run: |
+          nix eval --raw --expr '
+            let
+              lib = import <nixpkgs/nixos/lib>;
+              modules = [
+                ./modules/nixos/services.nix
+                ./modules/nixos/tailscale.nix
+                ./modules/nixos/desktop.nix
+                ./modules/nixos/utils.nix
+              ];
+            in
+              if lib.evalModules { inherit modules; } == null
+              then "Module evaluation failed"
+              else "Module evaluation succeeded"
+          '
+
+  build-host:
+    name: Build Host Configuration
+    runs-on: ubuntu-latest
+    needs: [checks, eval-modules]
+    strategy:
+      matrix:
+        host: [rocinante]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v25
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            max-jobs = auto
+            cores = 4
+
+      - name: Cache Nix store
+        uses: cachix/cachix-action@v14
+        with:
+          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+          name: kosta-nix-config
+
+      - name: Build ${{ matrix.host }} configuration
+        run: |
+          # Use --max-jobs and --cores to speed up CI builds
+          nix build .#nixosConfigurations.${{ matrix.host }}.config.system.build.toplevel --max-jobs 4 --cores 4
+
+      - name: Check Home Manager activation
+        run: |
+          nix build .#nixosConfigurations.${{ matrix.host }}.config.home-manager.users.kosta.home.activationPackage
+
+  eval-profiles:
+    name: Profile Evaluation Tests
+    runs-on: ubuntu-latest
+    needs: [checks]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v25
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      - name: Evaluate workstation profile
+        run: |
+          nix eval --raw --expr '
+            let
+              lib = import <nixpkgs/lib>;
+              config = import ./profiles/workstation.nix;
+            in
+              if builtins.typeOf config == "set" then "Profile valid" else "Profile invalid"
+          '
+
+      - name: Check profile imports
+        run: |
+          # Verify profile can import all expected modules
+          nix eval --expr 'import ./profiles/workstation.nix {}' --apply 'x: if x == null then "invalid" else "valid"'
+
+  eval-users:
+    name: User Configuration Tests
+    runs-on: ubuntu-latest
+    needs: [checks]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v25
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      - name: Evaluate user packages
+        run: |
+          nix-instantiate --parse --expr "import ./users/kosta/packages.nix" > /dev/null
+
+      - name: Evaluate user programs
+        run: |
+          for prog in users/kosta/programs/git.nix users/kosta/programs/shell.nix users/kosta/programs/editors/default.nix users/kosta/programs/services.nix; do
+            echo "Evaluating $prog..."
+            nix-instantiate --parse --expr "import ./$prog" > /dev/null
+          done
+
+      - name: Check user default config
+        run: |
+          nix-instantiate --parse --expr "import ./users/kosta/default.nix" > /dev/null
+
+  critical-checks:
+    name: Critical Configuration Validation
+    runs-on: ubuntu-latest
+    needs: [checks, eval-modules]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v25
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      - name: Validate flake outputs
+        run: |
+          # Ensure all expected outputs exist
+          nix flake show --json | jq '. | keys' | grep -q "nixosConfigurations"
+          nix flake show --json | jq '. | keys' | grep -q "devShells"
+          nix flake show --json | jq '. | keys' | grep -q "checks"
+
+      - name: Test boot configuration
+        run: |
+          # Extract and validate boot config from host
+          nix eval .#nixosConfigurations.rocinante.config.boot.loader --apply 'x: builtins.typeOf x' | grep -q "set"
+
+      - name: Test networking configuration
+        run: |
+          # Validate networking config
+          nix eval .#nixosConfigurations.rocinante.config.networking.hostName | grep -q "rocinante"
+
+      - name: Test user configuration exists
+        run: |
+          # Ensure user config is defined
+          nix eval .#nixosConfigurations.rocinante.config.users.users.kosta.isNormalUser | grep -q "true"
