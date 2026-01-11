@@ -52,7 +52,7 @@ in
     # feel free to add your own or remove some of them
 
     # IDE
-    pkgs-unstable.zed-editor
+    # pkgs-unstable.zed-editor  # disabled
 
     fastfetch
     nnn # terminal file manager
