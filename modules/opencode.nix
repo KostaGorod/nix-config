@@ -3,9 +3,18 @@
 let
   cfg = config.programs.opencode;
 
-  # Import from nix-ai-tools
+  # Import from nix-ai-tools and override with latest version
   nix-ai-tools = inputs.nix-ai-tools;
-  opencode-pkg = nix-ai-tools.packages.${pkgs.stdenv.hostPlatform.system}.opencode;
+  opencode-base = nix-ai-tools.packages.${pkgs.stdenv.hostPlatform.system}.opencode;
+
+  # Override to v1.1.12 (released 2026-01-10)
+  opencode-pkg = opencode-base.overrideAttrs (old: rec {
+    version = "1.1.12";
+    src = pkgs.fetchurl {
+      url = "https://github.com/anomalyco/opencode/releases/download/v${version}/opencode-linux-x64.tar.gz";
+      hash = "sha256-eiFuBbT1Grz1UBrGfg22z2AdCvE/6441vLVDD6L9DgE=";
+    };
+  });
 in
 {
   options.programs.opencode = {
