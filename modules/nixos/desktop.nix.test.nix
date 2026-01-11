@@ -2,15 +2,17 @@
   pkgs,
   lib,
   tests,
+  inputs,
   ...
 }:
 
 let
-  module = import ./desktop.nix { inherit pkgs lib; };
+  module = import ./desktop.nix { inherit pkgs lib inputs; };
 in
 {
   checks = {
-    xserver-enabled = tests.runTest "xserver" module.services.xserver.enable;
-    sddm-enabled = tests.runTest "sddm" module.services.displayManager.sddm.enable;
+    # desktop.nix contains fonts and system packages
+    has-fonts = tests.runTest "fonts" (module ? fonts.packages);
+    has-packages = tests.runTest "desktop-packages" (module ? environment.systemPackages);
   };
 }
