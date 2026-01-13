@@ -11,7 +11,7 @@ in
   home.packages = with pkgs; [
     # IDEs & Editors
     pkgs-unstable.zed-editor
-    code-cursor
+    # code-cursor
 
     # Browsers
     firefox
