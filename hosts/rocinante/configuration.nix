@@ -31,6 +31,7 @@ in
   imports = [
     ./hardware-configuration.nix # Include the results of the hardware scan.
     ../../modules/tailscale.nix # Tailscale configuration module
+    ../../modules/nixos/nix-ld.nix # nix-ld for dynamic binary support (uv, python venvs)
     ../../modules/opencode.nix # OpenCode AI coding agent
     ../../modules/claude-code.nix # Claude Code CLI
     # ../../modules/codex.nix # Numtide Codex AI assistant (temporarily disabled)
@@ -42,10 +43,20 @@ in
     # "${pkgs-stable.path}/nixos/modules/services/networking/wpa_supplicant.nix"
   ];
 
-  nix.settings.experimental-features = [
-    "nix-command"
-    "flakes"
-  ];
+  nix.settings = {
+    substituters = [
+      "https://cache.nixos.org/"
+      "https://cosmic.cachix.org/"
+    ];
+    trusted-public-keys = [
+      "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
+      "cosmic.cachix.org-1:Dya9IyXD4xdBehWjX818gw+s7maCeSJ8844iQ80x1M0="
+    ];
+    experimental-features = [
+      "nix-command"
+      "flakes"
+    ];
+  };
   #nix.channel.enable = true; # not sure if needed at all
   nix = {
     registry = lib.mapAttrs (_: value: { flake = value; }) inputs;
@@ -254,7 +265,7 @@ in
 
   # Enable Vibe Kanban AI coding agent orchestration (systemd service)
   services.vibe-kanban = {
-    enable = true;
+    enable = false;
     port = 8080;
     # host = "0.0.0.0";  # uncomment to expose to network
     # openFirewall = true;
@@ -270,7 +281,6 @@ in
     nix-direnv.enable = true;
   };
 
-  # users.users.kosta.extraGroups = lib.mkAfter ["adbusers"];
   # Define a user account. Don't forget to set a password with ‘passwd’.
   users.users.kosta = {
     isNormalUser = true;
@@ -293,7 +303,6 @@ in
       kdePackages.plasma-browser-integration
       pciutils
       remmina # rdp client
-      code-cursor
       onlyoffice-desktopeditors
       #
       # modified Vivaldi package for native wayland support, also fixes crash in plasma6
