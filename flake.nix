@@ -35,18 +35,23 @@
     antigravity-fhs.url = "path:flakes/antigravity-fhs";
     abacusai-fhs.url = "path:flakes/abacusai-fhs";
     vibe-kanban.url = "path:flakes/vibe-kanban";
-    cosmic-unstable.url = "path:flakes/cosmic-unstable";
+
+    # cosmic-unstable = {
+    #   url = "github:lilyinstarlight/nixos-cosmic";
+    #   inputs.nixpkgs.follows = "nixpkgs-unstable";
+    # };
+
 
     ultimate-bug-scanner.url = "github:Dicklesworthstone/ultimate_bug_scanner";
   };
 
   outputs =
     inputs@{
-      self,
-      flake-parts,
-      nixpkgs,
-      ...
-    }:
+        self,
+        flake-parts,
+        nixpkgs,
+        ...
+      }:
     flake-parts.lib.mkFlake { inherit inputs; } {
       systems = [
         "x86_64-linux"
@@ -86,7 +91,8 @@
             inputs.disko.nixosModules.disko
             ./profiles/workstation.nix
             ./de/plasma6.nix
-            inputs.cosmic-unstable.nixosModules.default
+            # inputs.cosmic-unstable.nixosModules.default
+            ./de/cosmic.nix
             ./modules/nixos/utils.nix
             ./modules/spotify.nix
             ./modules/moonlight-qt.nix
