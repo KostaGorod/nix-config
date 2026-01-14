@@ -159,11 +159,11 @@ in
       pkgs.hplip
       pkgs.pantum-driver
     ];
-    # Enable network printer sharing
-    listenAddresses = [ "*:631" ]; # Listen on all interfaces
-    allowFrom = [ "all" ]; # Allow access from all hosts
+    # Restrict to LAN only (192.168.190.130)
+    listenAddresses = [ "192.168.190.130:631" ];
+    allowFrom = [ "192.168.190.0/24" ]; # Allow from LAN subnet only
     browsing = true; # Enable printer browsing
-    defaultShared = true; # Share all printers by default
+    defaultShared = false; # Do not share by default
   };
   services.avahi = {
     # Printers discovery (Apple streaming disabled)
@@ -438,8 +438,35 @@ in
   # Open ports in the firewall.
   # networking.firewall.allowedTCPPorts = [ ... ];
   # networking.firewall.allowedUDPPorts = [ ... ];
-  # Or disable the firewall altogether.
-  networking.firewall.enable = false;
+
+  # Firewall enabled with strict default-deny policy
+  # Tailscale in separate zone with granular access control
+  networking.firewall = {
+    enable = true;
+
+    # Tailscale zone: Allow basic connectivity, but restrict specific ports
+    extraCommands = ''
+      # Allow established connections (stateful firewall)
+      iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+
+      # Allow Tailscale ICMP (ping, network discovery)
+      iptables -A INPUT -i tailscale0 -p icmp -j ACCEPT
+
+      # Allow port 9898 only from specific IP (not entire Tailscale network)
+      iptables -A INPUT -p tcp -s 100.102.123.22 --dport 9898 -j ACCEPT
+
+      # Allow other necessary Tailscale traffic (add as needed)
+      # Examples:
+      # iptables -A INPUT -i tailscale0 -p tcp --dport 22 -j ACCEPT  # SSH via Tailscale
+      # iptables -A INPUT -i tailscale0 -p tcp --dport 443 -j ACCEPT  # HTTPS via Tailscale
+    '';
+
+    extraStopCommands = ''
+      iptables -D INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT 2>/dev/null || true
+      iptables -D INPUT -i tailscale0 -p icmp -j ACCEPT 2>/dev/null || true
+      iptables -D INPUT -p tcp -s 100.102.123.22 --dport 9898 -j ACCEPT 2>/dev/null || true
+    '';
+  };
 
   #works only on unstable (or 24.11)
   hardware.graphics = {
@@ -476,6 +503,14 @@ in
   #
   # For more information, see `man configuration.nix` or https://nixos.org/manual/nixos/stable/options#opt-system.stateVersion .
   system.stateVersion = "24.05"; # Did you read the comment?
+
+  # Security hardening: Enable automatic security updates
+  # Critical for CVE patching and vulnerability remediation
+  system.autoUpgrade = {
+    enable = true;
+    allowReboot = false;  # Manual reboot control required
+    dates = "weekly";     # Check for updates weekly
+  };
 
   # Optimising the NixOS store with automatic options. This will optimise the
   # store on every build which may slow down builds. The alternativ is to set
