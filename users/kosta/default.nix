@@ -14,6 +14,7 @@ in
     ./programs/editors.nix
     ./programs/services.nix
     ./programs/fuzzel.nix
+    ./programs/zen-browser.nix
   ];
 
   home = {
