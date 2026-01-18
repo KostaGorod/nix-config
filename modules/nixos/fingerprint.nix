@@ -47,7 +47,7 @@ in
     # Enable for specific PAM services
     sudo = lib.mkEnableOption "fingerprint auth for sudo" // { default = true; };
     polkit = lib.mkEnableOption "fingerprint auth for polkit (GUI privilege escalation)" // { default = true; };
-    login = lib.mkEnableOption "fingerprint auth for greeter login" // { default = true; };
+    login = lib.mkEnableOption "fingerprint auth for greeter login" // { default = false; };
     screenLock = lib.mkEnableOption "fingerprint auth for screen lock" // { default = true; };
   };
 
@@ -57,12 +57,21 @@ in
 
     # Configure PAM services for fingerprint authentication
     security.pam.services = {
+      # sudo/su: fingerprint with password fallback
       sudo.fprintAuth = cfg.sudo;
       su.fprintAuth = cfg.sudo;
+      
+      # polkit: fingerprint for GUI privilege escalation
       polkit-1.fprintAuth = cfg.polkit;
+      
+      # Login: password only (to unlock keyring)
       greetd.fprintAuth = cfg.login;
       cosmic-greeter.fprintAuth = cfg.login;
       login.fprintAuth = cfg.login;
+      
+      # Screen lock: fingerprint for quick unlock
+      swaylock.fprintAuth = cfg.screenLock;
+      hyprlock.fprintAuth = cfg.screenLock;
     };
 
     # fprintd CLI tools for enrollment + notification helper
