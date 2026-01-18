@@ -16,7 +16,11 @@ in
 {
   imports = [
     ./hardware-configuration.nix
+    ../../modules/nixos/fingerprint.nix
   ];
+
+  # Boot menu label for this generation
+  system.nixos.label = "fingerprint-fixed-working";
 
   # Nix settings
   nix.settings.experimental-features = [
@@ -62,6 +66,7 @@ in
 
   # Hardware
   hardware.bluetooth.enable = true;
+  hardware.fingerprint.enable = true; # Fingerprint authentication for sudo/polkit/login
   hardware.logitech.wireless.enable = true;
   hardware.logitech.wireless.enableGraphical = true;
   hardware.graphics = {

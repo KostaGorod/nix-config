@@ -94,6 +94,7 @@
             # inputs.cosmic-unstable.nixosModules.default
             ./de/cosmic.nix
             ./modules/nixos/utils.nix
+            ./modules/nixos/cliphist.nix
             ./modules/nixos/spotify.nix
             ./modules/nixos/moonlight-qt.nix
             inputs.vibe-kanban.nixosModules.default

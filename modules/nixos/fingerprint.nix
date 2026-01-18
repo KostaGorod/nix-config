@@ -9,6 +9,36 @@
 
 let
   cfg = config.hardware.fingerprint;
+
+  # Script to show fingerprint notification popup
+  fingerprint-popup = pkgs.writeShellScriptBin "fingerprint-popup" ''
+    # Get the user's display
+    export DISPLAY=:0
+    export WAYLAND_DISPLAY=''${WAYLAND_DISPLAY:-wayland-1}
+    
+    # Find user's runtime dir for dbus
+    for user_run in /run/user/*; do
+      if [ -S "$user_run/bus" ]; then
+        export DBUS_SESSION_BUS_ADDRESS="unix:path=$user_run/bus"
+        break
+      fi
+    done
+
+    # Show notification
+    ${pkgs.libnotify}/bin/notify-send \
+      --urgency=critical \
+      --icon=fingerprint-gui \
+      --app-name="Authentication" \
+      --expire-time=10000 \
+      "🔐 Fingerprint Required" \
+      "Place your finger on the sensor" 2>/dev/null || true
+  '';
+
+  # Wrapper for fprintd-verify that shows notification
+  fprintd-verify-notify = pkgs.writeShellScriptBin "fprintd-verify-notify" ''
+    ${fingerprint-popup}/bin/fingerprint-popup &
+    exec ${pkgs.fprintd}/bin/fprintd-verify "$@"
+  '';
 in
 {
   options.hardware.fingerprint = {
@@ -27,28 +57,20 @@ in
 
     # Configure PAM services for fingerprint authentication
     security.pam.services = {
-      # sudo - authenticate with fingerprint
       sudo.fprintAuth = cfg.sudo;
-
-      # su - authenticate with fingerprint  
       su.fprintAuth = cfg.sudo;
-
-      # polkit - GUI privilege escalation
       polkit-1.fprintAuth = cfg.polkit;
-
-      # greetd - used by cosmic-greeter and other greetd-based greeters
       greetd.fprintAuth = cfg.login;
-
-      # login - general login PAM service
+      cosmic-greeter.fprintAuth = cfg.login;
       login.fprintAuth = cfg.login;
-
-      # COSMIC screen locker (cosmic-greeter uses greetd)
-      # Screen lock in COSMIC desktop
     };
 
-    # fprintd CLI tools for enrollment
+    # fprintd CLI tools for enrollment + notification helper
     environment.systemPackages = with pkgs; [
       fprintd
+      libnotify
+      fingerprint-popup
+      fprintd-verify-notify
     ];
 
     # Ensure PolicyKit is enabled for GUI authentication
