@@ -40,6 +40,7 @@ in
     # Add session variables for users
     environment.sessionVariables = {
       OPENCODE_CONFIG_HOME = "$HOME/.config/opencode";
+      OPENCODE_AUTO_SHARE = "false";
     };
   };
 }
