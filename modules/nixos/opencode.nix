@@ -12,6 +12,37 @@ let
   # Import from nix-ai-tools
   inherit (inputs) nix-ai-tools;
   opencode-pkg = nix-ai-tools.packages.${pkgs.stdenv.hostPlatform.system}.opencode;
+
+  opencode-wrapper = pkgs.symlinkJoin {
+    name = "opencode-wrapper";
+    paths = [
+      cfg.package
+    ];
+    postBuild = ''
+      rm -f $out/bin/opencode
+
+      cat > $out/bin/opencode <<'EOF'
+      #!${pkgs.bash}/bin/bash
+      set -euo pipefail
+
+      if [[ $# -ge 1 && "$1" == "desktop" ]]; then
+        shift || true
+
+        if command -v opencode-desktop >/dev/null 2>&1; then
+          exec opencode-desktop "$@"
+        fi
+
+        echo "opencode-desktop is not installed or not on PATH." >&2
+        echo "Install it from https://opencode.ai/download and try again." >&2
+        exit 1
+      fi
+
+      exec ${cfg.package}/bin/opencode "$@"
+      EOF
+
+      chmod +x $out/bin/opencode
+    '';
+  };
 in
 {
   options.programs.opencode = {
@@ -22,12 +53,24 @@ in
       default = opencode-pkg;
       description = "The OpenCode package to use";
     };
+
+    desktop = {
+      enable = lib.mkEnableOption "OpenCode Desktop launcher via 'opencode desktop'";
+
+      package = lib.mkOption {
+        type = lib.types.nullOr lib.types.package;
+        default = null;
+        description = "Optional opencode-desktop package to add to PATH";
+      };
+    };
   };
 
   config = lib.mkIf cfg.enable {
-    # Add opencode to system packages
+    # Add opencode (with wrapper) to system packages
     environment.systemPackages = [
-      cfg.package
+      opencode-wrapper
+    ] ++ lib.optionals (cfg.desktop.enable && cfg.desktop.package != null) [
+      cfg.desktop.package
     ];
 
     # Create necessary directories for OpenCode
