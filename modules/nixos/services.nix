@@ -52,6 +52,14 @@
 
   # Power management
   services.power-profiles-daemon.enable = false;
+  
+  # System76 Scheduler - prioritizes foreground apps, improves responsiveness
+  # Works alongside TLP (no conflict - scheduler handles process priorities, TLP handles hardware power)
+  services.system76-scheduler = {
+    enable = true;
+    useStockConfig = true;  # Use upstream Pop!_OS defaults
+  };
+
   services.tlp = {
     enable = true;
     settings = {
