@@ -167,9 +167,9 @@ in
   };
   services.avahi = {
     # Printers discovery (Apple streaming disabled)
-    enable = true;
-    nssmdns4 = true;
-    openFirewall = true;
+    enable = false;
+    nssmdns4 = false;
+    openFirewall = false;
     # Disable Apple streaming/AirPlay features
     publish = {
       enable = false; # Don't advertise this machine
@@ -180,6 +180,8 @@ in
     };
     reflector = false; # Don't reflect mDNS (used by AirPlay across subnets)
   };
+
+  services.nscd.enable = false;
   # Enable sound.
   # hardware.pulseaudio.enable = true;
   # OR
