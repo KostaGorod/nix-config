@@ -6,7 +6,7 @@
     disk = {
       main = {
         type = "disk";
-        device = "/dev/sda";
+        device = "/dev/vda";
         content = {
           type = "gpt";
           partitions = {
@@ -21,7 +21,7 @@
               };
             };
             root = {
-              size = "98%";
+              size = "100%";
               content = {
                 type = "filesystem";
                 format = "ext4";

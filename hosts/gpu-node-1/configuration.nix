@@ -68,11 +68,16 @@
     };
     
     networks = {
-      # Main interface - VLAN trunk
+      # Main interface - VLAN trunk + default network
       "20-main" = {
         matchConfig.Name = "en*";  # Match ethernet interface
         vlan = [ "vlan100" ];
-        networkConfig.LinkLocalAddressing = "no";
+        networkConfig = {
+          DHCP = "yes";  # Default/untagged VLAN for SSH access
+        };
+        dhcpV4Config = {
+          RouteMetric = 100;  # Lower priority than VLAN100 if both have routes
+        };
       };
       
       # K8s VLAN with static IP
@@ -84,6 +89,10 @@
           DNS = [ "10.100.1.1" "1.1.1.1" ];
           DHCP = "no";
         };
+        routes = [
+          # K8s traffic uses VLAN100 gateway
+          { Destination = "10.100.0.0/16"; Gateway = "10.100.1.1"; Metric = 50; }
+        ];
       };
     };
   };
@@ -109,8 +118,11 @@
     extraGroups = [ "wheel" "docker" "video" "render" ];
     openssh.authorizedKeys.keys = [
       # Add your SSH public key here
-      # "ssh-ed25519 AAAA..."
+      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFtkgXu/YbIS0vS4D/gZwejFfTs5JgnzuC8mJ7458M8/ kosta@rocinante"
     ];
+    # Generate with: mkpasswd -m sha-512
+    # Or use: nix-shell -p mkpasswd --run 'mkpasswd -m sha-512'
+    hashedPassword = "$6$DEZMi88WK4aKrWfc$HNdlAblj5.KRkmizg6fffuDexQmYGLewdmiu1w1FtBRSWvQs9BSfGCv8wIJ8bive3ZSCdGW11qo4YX6dTgmPQ1";
   };
 
   # Allow wheel group to sudo without password (optional, for convenience)
