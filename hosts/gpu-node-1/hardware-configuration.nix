@@ -1,47 +1,33 @@
 # Hardware configuration for GPU Node 1
 # AMD Ryzen 5 3400G + 2x NVIDIA RTX 3080
 #
-# NOTE: This is a template. Run `nixos-generate-config` on the actual
-# hardware to get accurate values for filesystems and kernel modules.
+# Minimal config - nixos-anywhere will generate accurate values
+# after first boot with `nixos-generate-config`
 
 { config, lib, pkgs, modulesPath, ... }:
 
 {
   imports = [
     (modulesPath + "/installer/scan/not-detected.nix")
+    (modulesPath + "/profiles/qemu-guest.nix")
   ];
 
   # =============================================================================
   # BOOT
   # =============================================================================
   boot.initrd.availableKernelModules = [ 
-    "nvme" 
-    "xhci_pci" 
     "ahci" 
-    "usbhid" 
+    "xhci_pci" 
+    "virtio_pci" 
+    "virtio_scsi"
     "sd_mod" 
+    "sr_mod"
   ];
   boot.initrd.kernelModules = [ ];
   boot.kernelModules = [ "kvm-amd" ];
   boot.extraModulePackages = [ ];
 
-  # =============================================================================
-  # FILESYSTEMS
-  # =============================================================================
-  # TODO: Update these after running nixos-generate-config on actual hardware
-  fileSystems."/" = {
-    device = "/dev/disk/by-label/nixos";
-    fsType = "ext4";
-  };
-
-  fileSystems."/boot" = {
-    device = "/dev/disk/by-label/boot";
-    fsType = "vfat";
-  };
-
-  swapDevices = [
-    { device = "/dev/disk/by-label/swap"; }
-  ];
+  # Filesystems are managed by disko - no need to declare here
 
   # =============================================================================
   # HARDWARE

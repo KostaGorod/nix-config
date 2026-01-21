@@ -117,6 +117,8 @@
       specialArgs = { inherit inputs; };
       modules = [
         ./hosts/gpu-node-1/configuration.nix
+        inputs.disko.nixosModules.disko
+        ./hosts/gpu-node-1/disko-config.nix
         # home-manager.nixosModules.home-manager
         # {
         #   home-manager.useGlobalPkgs = true;
