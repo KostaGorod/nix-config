@@ -3,6 +3,7 @@
 {
   imports = [
     ./hardware-configuration.nix
+    ../../modules/nixos/tailscale.nix
     ../../modules/k3s/server.nix
     ../../modules/nvidia/default.nix
     ../../modules/nixos/vfio.nix
@@ -52,7 +53,9 @@
       allowedUDPPorts = [
         8472    # Flannel VXLAN
         51820   # WireGuard (if using)
+        # 41641 added by tailscale.nix module
       ];
+      # tailscale0 added as trusted interface by tailscale.nix module
     };
   };
 
