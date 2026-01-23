@@ -34,6 +34,12 @@
   };
 
   # =============================================================================
+  # NIXPKGS NVIDIA SETTINGS
+  # =============================================================================
+  nixpkgs.config.nvidia.acceptLicense = true;
+  hardware.nvidia.datacenter.enable = true;
+
+  # =============================================================================
   # NVIDIA CONTAINER TOOLKIT (for K3s GPU workloads)
   # =============================================================================
   hardware.nvidia-container-toolkit = {
