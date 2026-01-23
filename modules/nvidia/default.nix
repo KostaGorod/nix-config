@@ -12,10 +12,9 @@
     enable32Bit = true;
   };
 
-  # NOTE: X11/Wayland desktop drivers are disabled on this host because
-  # hardware.nvidia.datacenter.enable = true below uses the data-center
-  # kernel driver, which conflicts with X11. If you ever need a GUI on
-  # this machine, disable datacenter mode and re-enable videoDrivers.
+  # NOTE: services.xserver.videoDrivers is set to load the nvidia kernel module.
+  # This does NOT require X11/Wayland - it just ensures the nvidia driver loads
+  # for compute/container workloads. Works headless.
 
   hardware.nvidia = {
     # Modesetting is required
@@ -39,7 +38,11 @@
   # NIXPKGS NVIDIA SETTINGS
   # =============================================================================
   nixpkgs.config.nvidia.acceptLicense = true;
-  hardware.nvidia.datacenter.enable = true;
+  
+  # Load nvidia kernel driver (required for container-toolkit and K3s GPU access)
+  # NOTE: datacenter.enable is NOT needed for consumer GPUs (RTX 2070, 3080, 4090, etc.)
+  # Datacenter mode is only for Tesla, A100, H100 with NVLink/NVSwitch topologies
+  services.xserver.videoDrivers = [ "nvidia" ];
 
   # =============================================================================
   # NVIDIA CONTAINER TOOLKIT (for K3s GPU workloads)
