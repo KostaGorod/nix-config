@@ -31,7 +31,8 @@
 
   # =============================================================================
   # NVIDIA Device Plugin for Kubernetes
-  # Uses NVML (nvidia-smi) for GPU discovery - works without special containerd config
+  # Uses NVML (nvidia-smi) for GPU discovery
+  # Requires nvidia driver libraries mounted from NixOS host paths
   # =============================================================================
   services.k3s.manifests.nvidia-device-plugin = {
     target = "nvidia-device-plugin.yaml";
@@ -58,17 +59,25 @@
               image = "nvcr.io/nvidia/k8s-device-plugin:v0.17.0";
               env = [
                 # Use NVML (nvidia-smi) for device discovery
-                # This works without special containerd configuration
                 { name = "DEVICE_DISCOVERY_STRATEGY"; value = "nvml"; }
                 { name = "FAIL_ON_INIT_ERROR"; value = "false"; }
+                # NixOS-specific: nvidia libraries are in /run/opengl-driver/lib
+                { name = "LD_LIBRARY_PATH"; value = "/run/opengl-driver/lib"; }
               ];
               securityContext.privileged = true;
               volumeMounts = [
                 { name = "device-plugin"; mountPath = "/var/lib/kubelet/device-plugins"; }
+                # NixOS-specific mounts for nvidia driver access
+                { name = "nvidia-driver"; mountPath = "/run/opengl-driver"; readOnly = true; }
+                { name = "nix-store"; mountPath = "/nix/store"; readOnly = true; }
               ];
             }];
             volumes = [
               { name = "device-plugin"; hostPath.path = "/var/lib/kubelet/device-plugins"; }
+              # NixOS-specific: nvidia driver libraries
+              { name = "nvidia-driver"; hostPath.path = "/run/opengl-driver"; }
+              # NixOS-specific: nix store for symlink resolution
+              { name = "nix-store"; hostPath.path = "/nix/store"; }
             ];
           };
         };
