@@ -53,6 +53,19 @@
     mount-nvidia-executables = true;
   };
 
+  # Generate CDI spec on boot for nvidia-container-toolkit
+  # This creates /var/run/cdi/nvidia.yaml which the device plugin needs
+  systemd.services.nvidia-cdi-generator = {
+    description = "Generate NVIDIA CDI specification";
+    wantedBy = [ "multi-user.target" ];
+    after = [ "systemd-udev-settle.service" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      ExecStart = "${pkgs.nvidia-container-toolkit}/bin/nvidia-ctk cdi generate --output=/var/run/cdi/nvidia.yaml";
+    };
+  };
+
   # =============================================================================
   # PERSISTENCE MODE
   # OFF by default to allow driver unbinding for VFIO switching
