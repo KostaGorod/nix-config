@@ -21,32 +21,18 @@
       "--node-label=gpu-0-status=available"
     ];
     
-    # Configure containerd with nvidia runtime
-    # K3s uses this template to generate containerd config
-    # NOTE: We use /run/current-system/sw/bin path which is always valid on NixOS
-    # The nvidia-container-runtime is added to systemPackages so it's available there
+    # Enable CDI support in containerd for GPU device injection
+    # NixOS nvidia-container-toolkit uses CDI (not nvidia-container-runtime)
     containerdConfigTemplate = ''
       # Base K3s containerd config
       {{ template "base" . }}
 
-      # Add nvidia container runtime for GPU workloads
-      [plugins."io.containerd.grpc.v1.cri".containerd.runtimes."nvidia"]
-        runtime_type = "io.containerd.runc.v2"
-      [plugins."io.containerd.grpc.v1.cri".containerd.runtimes."nvidia".options]
-        BinaryName = "/run/current-system/sw/bin/nvidia-container-runtime"
+      # Enable CDI (Container Device Interface) for GPU access
+      # The nvidia-container-toolkit-cdi-generator service creates specs in /var/run/cdi
+      [plugins."io.containerd.grpc.v1.cri"]
+        enable_cdi = true
+        cdi_spec_dirs = ["/var/run/cdi", "/etc/cdi"]
     '';
-  };
-  
-  # Create nvidia RuntimeClass for K3s
-  # This allows pods to request the nvidia runtime via runtimeClassName: nvidia
-  services.k3s.manifests.nvidia-runtime-class = {
-    target = "nvidia-runtime-class.yaml";
-    content = {
-      apiVersion = "node.k8s.io/v1";
-      kind = "RuntimeClass";
-      metadata.name = "nvidia";
-      handler = "nvidia";
-    };
   };
 
   # Open ports for K3s
@@ -55,7 +41,7 @@
 
   # =============================================================================
   # NVIDIA Device Plugin for Kubernetes
-  # Uses nvml (nvidia-smi) for GPU discovery - simpler and more reliable on NixOS
+  # Uses CDI for device discovery (integrated with NixOS nvidia-container-toolkit)
   # =============================================================================
   services.k3s.manifests.nvidia-device-plugin = {
     target = "nvidia-device-plugin.yaml";
@@ -72,7 +58,7 @@
         template = {
           metadata.labels.name = "nvidia-device-plugin-ds";
           spec = {
-            runtimeClassName = "nvidia";
+            # No runtimeClassName - use default runc with CDI for device injection
             tolerations = [
               { key = "nvidia.com/gpu"; operator = "Exists"; effect = "NoSchedule"; }
               { key = "gpu-0"; operator = "Exists"; effect = "NoExecute"; }
@@ -82,19 +68,21 @@
               name = "nvidia-device-plugin-ctr";
               image = "nvcr.io/nvidia/k8s-device-plugin:v0.17.0";
               env = [
-                { name = "DEVICE_DISCOVERY_STRATEGY"; value = "nvml"; }
+                # Use CDI for device discovery - matches NixOS nvidia-container-toolkit
+                { name = "DEVICE_DISCOVERY_STRATEGY"; value = "cdi"; }
+                { name = "CDI_ROOT"; value = "/var/run/cdi"; }
                 { name = "FAIL_ON_INIT_ERROR"; value = "false"; }
               ];
               securityContext.privileged = true;
-              volumeMounts = [{
-                name = "device-plugin";
-                mountPath = "/var/lib/kubelet/device-plugins";
-              }];
+              volumeMounts = [
+                { name = "device-plugin"; mountPath = "/var/lib/kubelet/device-plugins"; }
+                { name = "cdi"; mountPath = "/var/run/cdi"; readOnly = true; }
+              ];
             }];
-            volumes = [{
-              name = "device-plugin";
-              hostPath.path = "/var/lib/kubelet/device-plugins";
-            }];
+            volumes = [
+              { name = "device-plugin"; hostPath.path = "/var/lib/kubelet/device-plugins"; }
+              { name = "cdi"; hostPath.path = "/var/run/cdi"; }
+            ];
           };
         };
       };
@@ -105,7 +93,5 @@
     k3s 
     kubectl
     k9s
-    # nvidia-container-runtime must be in PATH for containerd to find it
-    nvidia-container-toolkit
   ];
 }
