@@ -12,8 +12,10 @@
     enable32Bit = true;
   };
 
-  # Load NVIDIA driver for Xorg and Wayland
-  services.xserver.videoDrivers = ["nvidia"];
+  # NOTE: X11/Wayland desktop drivers are disabled on this host because
+  # hardware.nvidia.datacenter.enable = true below uses the data-center
+  # kernel driver, which conflicts with X11. If you ever need a GUI on
+  # this machine, disable datacenter mode and re-enable videoDrivers.
 
   hardware.nvidia = {
     # Modesetting is required
