@@ -264,6 +264,75 @@ kubectl run gpu-test --rm -it --restart=Never \
   --overrides='...' -- nvidia-smi
 ```
 
+## Security Review
+
+This setup is operationally useful, but it intentionally crosses normal container isolation boundaries.
+On NixOS, getting NVML working typically requires `privileged` pods and `hostPath` mounts.
+Treat the GPU node as **a trusted execution environment**, not a strong security boundary.
+
+### Current Risk Factors (as implemented)
+
+- `privileged: true` (device plugin and many GPU workloads): a compromised container can often escalate to full host compromise.
+- `hostPath` mounts into privileged pods:
+  - `/run/opengl-driver` and `/nix/store` are needed for NVML on NixOS.
+  - GPU workloads often also need `/dev` (to access `/dev/nvidia*`).
+- K3s kubeconfig permissions: `--write-kubeconfig-mode 644` makes `/etc/rancher/k3s/k3s.yaml` world-readable on the host.
+- Network exposure on gpu-node-1: firewall allows K3s API (`6443`) and (in this repo) etcd ports (`2379`, `2380`) and kubelet (`10250`).
+  If these are reachable from untrusted networks, risk is high.
+- Local privilege configuration on gpu-node-1: `security.sudo.wheelNeedsPassword=false` plus broad NOPASSWD rules (e.g. `virsh *`) increases blast radius of any local compromise.
+
+### Recommended Hardening (pragmatic)
+
+- Reduce kubeconfig permissions (e.g. `600`) and use group-based access if needed.
+- Restrict `6443` to an admin/VPN network; restrict `2379/2380` to localhost/cluster peers only.
+- Enable Pod Security Admission (PSA): default `restricted`, with an explicit exemption only for the namespace that runs trusted GPU system daemons.
+- Set `automountServiceAccountToken: false` for the NVIDIA device plugin pod (it doesn’t need API access).
+- Keep GPU workloads in a dedicated namespace with explicitly allowed policies; avoid letting general workloads request `privileged` and `hostPath`.
+
+### Security Test Suite
+
+A lightweight probe + smoke-test suite exists under `scripts/pods/`.
+
+Run it from a machine that has `kubectl` access to the cluster.
+
+- `scripts/pods/run-suite.sh --mode probe`
+  - Demonstrates current exposure and records evidence.
+  - Probes:
+    - `probe-priv-hostpath-root`: privileged + `hostPath: /` (can it read host files?)
+    - `probe-serviceaccount-token`: is a serviceaccount token mounted, and can it list secrets (RBAC check)
+    - `probe-host-k3s-kubeconfig`: is `/etc/rancher/k3s/k3s.yaml` readable via `hostPath`
+    - `probe-node-ports`: are node ports reachable from a pod (`6443`, `10250`, `2379`, `2380`)
+  - Smoke:
+    - `smoke-gpu-nvidia-smi`: requests `nvidia.com/gpu: 1` and runs `nvidia-smi` via host mounts
+
+- `scripts/pods/run-suite.sh --mode enforce`
+  - Intended for after hardening.
+  - Currently enforces:
+    - host kubeconfig is not mode `644`
+    - privileged+hostPath pod is blocked
+    - `/etc/rancher/k3s/k3s.yaml` is not readable via `hostPath`
+    - etcd ports (`2379`, `2380`) are not reachable from a pod
+  - GPU smoke test must still pass.
+
+Notes:
+- The suite creates a namespace (default: `k3s-gpu-tests`) and cleans up after success. Use `--keep` to leave resources for inspection.
+- These probes are intentionally “offensive”; run them only on a cluster you own.
+
+## Test Suite Usage
+
+From any machine with `kubectl` configured for the cluster:
+
+- Run current-state vulnerability probes + GPU smoke test:
+  - `./scripts/pods/run-suite.sh --mode probe`
+- Run "post-hardening" expectations (will fail until you tighten policies):
+  - `./scripts/pods/run-suite.sh --mode enforce`
+- Keep objects for inspection:
+  - `./scripts/pods/run-suite.sh --mode probe --keep`
+- Use a custom namespace:
+  - `./scripts/pods/run-suite.sh --mode probe --namespace my-tests`
+
+The suite is designed to give you a baseline before hardening, then serve as a regression suite while minimizing vectors.
+
 ## Troubleshooting
 
 ### "No devices found" in device plugin
