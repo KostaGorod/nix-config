@@ -1583,9 +1583,288 @@ async def list_workers() -> str:
     return "\n".join(lines)
 
 
+# ============================================================
+# OBSERVATION & CONTROL - Real-time visibility and steering
+# ============================================================
+
+@app.tool()
+async def watch_worker(task_id: str, duration_seconds: int = 30) -> str:
+    """
+    Watch a worker's real-time output stream.
+
+    Args:
+        task_id: Worker to observe
+        duration_seconds: How long to watch (default 30s)
+
+    Returns:
+        Recent output from the worker
+    """
+    if task_id not in workers:
+        return f"Worker {task_id} not found"
+
+    worker_url = workers[task_id]["url"]
+    output_lines = []
+
+    try:
+        async with httpx.AsyncClient() as client:
+            async with client.stream(
+                "GET",
+                f"{worker_url}/stream",  # Real-time log stream
+                timeout=duration_seconds
+            ) as response:
+                start = asyncio.get_event_loop().time()
+                async for line in response.aiter_lines():
+                    output_lines.append(line)
+                    if asyncio.get_event_loop().time() - start > duration_seconds:
+                        break
+    except httpx.ReadTimeout:
+        pass  # Expected after duration
+
+    return f"Worker {task_id} output (last {duration_seconds}s):\n" + "\n".join(output_lines[-50:])
+
+
+@app.tool()
+async def ask_worker(task_id: str, question: str) -> str:
+    """
+    Ask a worker a question mid-task. Worker will respond while continuing work.
+
+    Args:
+        task_id: Worker to ask
+        question: Question or request for information
+
+    Returns:
+        Worker's response
+    """
+    if task_id not in workers:
+        return f"Worker {task_id} not found"
+
+    worker_url = workers[task_id]["url"]
+    current_task = workers[task_id].get("current_task_id")
+
+    if not current_task:
+        return f"Worker {task_id} has no active task. Use send_task first."
+
+    # A2A allows sending follow-up messages to an active task
+    payload = {
+        "message": {
+            "role": "user",
+            "parts": [{"text": question}]
+        }
+    }
+
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(
+            f"{worker_url}/tasks/{current_task}/messages",
+            json=payload,
+            timeout=30
+        )
+        result = resp.json()
+
+    return f"Worker response: {result.get('message', {}).get('parts', [{}])[0].get('text', 'No response')}"
+
+
+@app.tool()
+async def resteer_worker(task_id: str, new_direction: str) -> str:
+    """
+    Redirect a worker mid-task. Changes the current task's direction.
+
+    Args:
+        task_id: Worker to redirect
+        new_direction: New instructions (e.g., "Stop the API work, focus on the database schema instead")
+
+    Returns:
+        Confirmation and worker acknowledgment
+    """
+    if task_id not in workers:
+        return f"Worker {task_id} not found"
+
+    worker_url = workers[task_id]["url"]
+    current_task = workers[task_id].get("current_task_id")
+
+    # Send priority message with resteer flag
+    payload = {
+        "message": {
+            "role": "user",
+            "parts": [{"text": f"[PRIORITY REDIRECT]\n\n{new_direction}"}],
+            "metadata": {"priority": "high", "resteer": True}
+        }
+    }
+
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(
+            f"{worker_url}/tasks/{current_task}/messages",
+            json=payload,
+            timeout=30
+        )
+
+    return f"Resteer sent to {task_id}. New direction: {new_direction[:100]}..."
+
+
+@app.tool()
+async def cancel_task(task_id: str, reason: str = "Cancelled by captain") -> str:
+    """
+    Cancel a worker's current task immediately.
+
+    Args:
+        task_id: Worker whose task to cancel
+        reason: Why the task is being cancelled
+
+    Returns:
+        Cancellation confirmation
+    """
+    if task_id not in workers:
+        return f"Worker {task_id} not found"
+
+    worker_url = workers[task_id]["url"]
+    current_task = workers[task_id].get("current_task_id")
+
+    if not current_task:
+        return f"Worker {task_id} has no active task"
+
+    # A2A task cancellation
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(
+            f"{worker_url}/tasks/{current_task}/cancel",
+            json={"reason": reason},
+            timeout=10
+        )
+
+    workers[task_id]["current_task_id"] = None
+    return f"Task {current_task} cancelled. Reason: {reason}"
+
+
+@app.tool()
+async def get_worker_files(task_id: str, path: str = "/workspace") -> str:
+    """
+    List files in a worker's workspace.
+
+    Args:
+        task_id: Worker to inspect
+        path: Directory to list (default: /workspace)
+
+    Returns:
+        File listing with sizes and modification times
+    """
+    if task_id not in workers:
+        return f"Worker {task_id} not found"
+
+    worker_url = workers[task_id]["url"]
+
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            f"{worker_url}/files",
+            params={"path": path},
+            timeout=10
+        )
+        files = resp.json().get("files", [])
+
+    if not files:
+        return f"No files in {path}"
+
+    lines = [f"Files in {path}:"]
+    for f in files:
+        lines.append(f"  {f['name']:40} {f.get('size', '?'):>10} bytes  {f.get('modified', '')}")
+
+    return "\n".join(lines)
+
+
+@app.tool()
+async def read_worker_file(task_id: str, filepath: str) -> str:
+    """
+    Read a file from a worker's workspace.
+
+    Args:
+        task_id: Worker to read from
+        filepath: Path to file (relative to /workspace)
+
+    Returns:
+        File contents (truncated if large)
+    """
+    if task_id not in workers:
+        return f"Worker {task_id} not found"
+
+    worker_url = workers[task_id]["url"]
+
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            f"{worker_url}/files/content",
+            params={"path": filepath},
+            timeout=10
+        )
+        content = resp.text
+
+    # Truncate if too large
+    if len(content) > 5000:
+        content = content[:5000] + f"\n\n... (truncated, {len(content)} bytes total)"
+
+    return f"=== {filepath} ===\n{content}"
+
+
 if __name__ == "__main__":
     import mcp.server.stdio
     mcp.server.stdio.run(app)
+```
+
+### Captain Observability Summary
+
+| What Captain Sees | MCP Tool | A2A Endpoint | Real-time |
+|-------------------|----------|--------------|-----------|
+| **Task output** | `send_task` (streams) | SSE `task.message` | ✅ |
+| **Files created** | `get_worker_files` | `GET /files` | On-demand |
+| **File contents** | `read_worker_file` | `GET /files/content` | On-demand |
+| **Live logs** | `watch_worker` | `GET /stream` | ✅ |
+| **Worker status** | `get_worker_status` | `GET /.well-known/agent.json` | On-demand |
+
+| What Captain Controls | MCP Tool | A2A Endpoint |
+|-----------------------|----------|--------------|
+| **Spawn** | `spawn_worker` | (systemd/K8s) |
+| **Send task** | `send_task` | `POST /tasks/send` |
+| **Ask question** | `ask_worker` | `POST /tasks/{id}/messages` |
+| **Redirect** | `resteer_worker` | `POST /tasks/{id}/messages` (priority) |
+| **Cancel task** | `cancel_task` | `POST /tasks/{id}/cancel` |
+| **Kill worker** | `terminate_worker` | (systemd/K8s) |
+
+### Interactive Control Example
+
+```
+You: Start building an API
+
+OpenCode: [spawn_worker("dev")]
+         [send_task("dev", "Build a user management API")]
+         📝 Creating models...
+         📝 Adding routes...
+
+You: Wait, what database are you using?
+
+OpenCode: [ask_worker("dev", "What database are you using?")]
+         → Worker: "I'm using SQLite for simplicity. Want me to switch?"
+
+You: Yes, use PostgreSQL instead
+
+OpenCode: [resteer_worker("dev", "Switch to PostgreSQL. Use asyncpg.")]
+         📝 Acknowledged. Switching to PostgreSQL...
+         📝 Updating models for async...
+         📝 Adding connection pool...
+
+You: Show me what files exist now
+
+OpenCode: [get_worker_files("dev")]
+         → models.py      1.2KB
+         → database.py    0.8KB
+         → routes.py      2.1KB
+
+You: Let me see database.py
+
+OpenCode: [read_worker_file("dev", "database.py")]
+         → === database.py ===
+           import asyncpg
+           ...
+
+You: Actually, cancel this and start fresh
+
+OpenCode: [cancel_task("dev", "Starting over with new requirements")]
+         [terminate_worker("dev")]
+         → Worker terminated
 ```
 
 ### OpenCode/Claude Code Configuration
