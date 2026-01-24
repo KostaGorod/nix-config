@@ -17,6 +17,7 @@ in
   imports = [
     ./hardware-configuration.nix
     ../../modules/nixos/fingerprint.nix
+    ./configuration.nix
   ];
 
   # Boot menu label: use git commit info or "dirty" if uncommitted

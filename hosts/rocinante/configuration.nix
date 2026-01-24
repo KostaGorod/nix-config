@@ -296,14 +296,6 @@ in
   # Enable Abacus.AI DeepAgent desktop client and CLI
   programs.abacusai.enable = true;
 
-  # Enable Vibe Kanban AI coding agent orchestration (systemd service)
-  services.vibe-kanban = {
-    enable = false;
-    port = 8080;
-    # host = "0.0.0.0";  # uncomment to expose to network
-    # openFirewall = true;
-  };
-
   # Enable Bitwarden password manager (from nixpkgs-unstable)
   programs.bitwarden.enable = true;
 
