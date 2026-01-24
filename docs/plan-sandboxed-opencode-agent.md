@@ -61,9 +61,18 @@ Bubblewrap is **actively maintained** under [containers/bubblewrap](https://gith
 | OpenCode | bubblewrap wrapper OR Claude's sandbox-runtime + systemd template |
 | Both | K3s pods with NetworkPolicy (for multi-agent orchestration) |
 
-### Option: Use Claude's sandbox-runtime for OpenCode
+### Option: Use Claude's sandbox-runtime for OpenCode (Recommended)
 
-Anthropic open-sourced their sandbox runtime. Can wrap any command:
+Anthropic open-sourced their sandbox runtime under **Apache 2.0** - commercial use allowed.
+
+| Permission | Apache 2.0 |
+|------------|------------|
+| Commercial use | ✅ Allowed |
+| Modification | ✅ Allowed |
+| Distribution | ✅ Allowed |
+| Patent grant | ✅ Included |
+
+**Repository**: https://github.com/anthropic-experimental/sandbox-runtime
 
 ```bash
 # Install once
@@ -71,21 +80,184 @@ npm install -g @anthropic-ai/sandbox-runtime
 
 # Sandbox any command (including opencode)
 npx @anthropic-ai/sandbox-runtime opencode
+```
 
-# Or in NixOS module:
-sandboxedOpencode = pkgs.writeShellScriptBin "opencode-sandboxed" ''
-  export HTTP_PROXY="http://127.0.0.1:3128"
-  export HTTPS_PROXY="http://127.0.0.1:3128"
-  exec ${pkgs.nodePackages.npx}/bin/npx @anthropic-ai/sandbox-runtime \
-    ${opencode-pkg}/bin/opencode "$@"
-'';
+### NixOS Module for sandbox-runtime
+
+```nix
+# modules/sandbox-runtime/default.nix
+{ config, lib, pkgs, inputs, ... }:
+
+let
+  cfg = config.programs.sandbox-runtime;
+
+  # Build sandbox-runtime from npm
+  sandbox-runtime = pkgs.buildNpmPackage rec {
+    pname = "sandbox-runtime";
+    version = "0.1.0";  # Check latest version
+
+    src = pkgs.fetchFromGitHub {
+      owner = "anthropic-experimental";
+      repo = "sandbox-runtime";
+      rev = "main";  # Pin to specific commit in production
+      hash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";  # Update
+    };
+
+    npmDepsHash = "sha256-BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=";  # Update
+
+    # Needs bubblewrap and socat at runtime
+    nativeBuildInputs = [ pkgs.makeWrapper ];
+    postInstall = ''
+      wrapProgram $out/bin/sandbox-runtime \
+        --prefix PATH : ${lib.makeBinPath [ pkgs.bubblewrap pkgs.socat ]}
+    '';
+  };
+
+  opencode-pkg = inputs.nix-ai-tools.packages.${pkgs.stdenv.hostPlatform.system}.opencode;
+
+  # Wrapper that spawns opencode inside sandbox-runtime
+  opencode-sandboxed = pkgs.writeShellScriptBin "opencode-sandboxed" ''
+    set -euo pipefail
+
+    # Agent ID card support (optional)
+    if [[ -n "''${AGENT_CARD:-}" && -f "$AGENT_CARD" ]]; then
+      WORKSPACE=$(${pkgs.jq}/bin/jq -r '.workspace' "$AGENT_CARD")
+      PROXY=$(${pkgs.jq}/bin/jq -r '.proxy // ""' "$AGENT_CARD")
+      API_KEY_FILE=$(${pkgs.jq}/bin/jq -r '.api_key_file // ""' "$AGENT_CARD")
+
+      [[ -n "$PROXY" ]] && export HTTP_PROXY="$PROXY" HTTPS_PROXY="$PROXY"
+      [[ -n "$API_KEY_FILE" && -f "$API_KEY_FILE" ]] && export ANTHROPIC_API_KEY=$(cat "$API_KEY_FILE")
+
+      cd "$WORKSPACE"
+    fi
+
+    exec ${sandbox-runtime}/bin/sandbox-runtime \
+      ${opencode-pkg}/bin/opencode "$@"
+  '';
+
+  # Agent spawner using sandbox-runtime
+  agent-spawn = pkgs.writeShellScriptBin "agent-spawn" ''
+    set -euo pipefail
+
+    CARD_FILE="''${1:-}"
+    if [[ -z "$CARD_FILE" || ! -f "$CARD_FILE" ]]; then
+      echo "Usage: agent-spawn <agent-card.json> [args...]"
+      exit 1
+    fi
+
+    AGENT_ID=$(${pkgs.jq}/bin/jq -r '.agent_id' "$CARD_FILE")
+    WORKSPACE=$(${pkgs.jq}/bin/jq -r '.workspace' "$CARD_FILE")
+    PROXY=$(${pkgs.jq}/bin/jq -r '.proxy // ""' "$CARD_FILE")
+    API_KEY_FILE=$(${pkgs.jq}/bin/jq -r '.api_key_file // ""' "$CARD_FILE")
+    TTL=$(${pkgs.jq}/bin/jq -r '.ttl_seconds // 0' "$CARD_FILE")
+
+    mkdir -p "$WORKSPACE"
+
+    echo "[agent-spawn] Starting: $AGENT_ID"
+    echo "[agent-spawn] Workspace: $WORKSPACE"
+
+    # Build environment
+    ENV_ARGS=()
+    [[ -n "$PROXY" ]] && ENV_ARGS+=(--setenv HTTP_PROXY "$PROXY" --setenv HTTPS_PROXY "$PROXY")
+    [[ -n "$API_KEY_FILE" && -f "$API_KEY_FILE" ]] && ENV_ARGS+=(--setenv ANTHROPIC_API_KEY "$(cat "$API_KEY_FILE")")
+
+    # Optional TTL
+    TIMEOUT_CMD=""
+    [[ "$TTL" -gt 0 ]] && TIMEOUT_CMD="${pkgs.coreutils}/bin/timeout $TTL"
+
+    cd "$WORKSPACE"
+    exec $TIMEOUT_CMD ${sandbox-runtime}/bin/sandbox-runtime \
+      ${opencode-pkg}/bin/opencode "''${@:2}"
+  '';
+
+in
+{
+  options.programs.sandbox-runtime = {
+    enable = lib.mkEnableOption "Anthropic sandbox-runtime for agent isolation";
+
+    agentsDir = lib.mkOption {
+      type = lib.types.str;
+      default = "/mnt/agents";
+      description = "Base directory for agent workspaces";
+    };
+
+    proxy = lib.mkOption {
+      type = lib.types.str;
+      default = "";
+      description = "Default HTTP proxy for network auditing";
+    };
+  };
+
+  config = lib.mkIf cfg.enable {
+    environment.systemPackages = [
+      sandbox-runtime
+      opencode-sandboxed
+      agent-spawn
+      pkgs.bubblewrap
+      pkgs.socat
+      pkgs.jq
+    ];
+
+    systemd.tmpfiles.rules = [
+      "d ${cfg.agentsDir} 0755 root root -"
+    ];
+
+    # Systemd template for managed agents
+    systemd.services."sandboxed-agent@" = {
+      description = "Sandboxed Agent %i";
+      after = [ "network.target" ];
+
+      serviceConfig = {
+        Type = "simple";
+        ExecStart = "${agent-spawn}/bin/agent-spawn /etc/agents/%i.json";
+        Restart = "on-failure";
+        RestartSec = "10s";
+
+        # Defense in depth (systemd limits on top of sandbox)
+        MemoryMax = "4G";
+        CPUQuota = "200%";
+        TasksMax = 100;
+
+        StandardOutput = "journal";
+        StandardError = "journal";
+        SyslogIdentifier = "agent-%i";
+      };
+    };
+  };
+}
+```
+
+### Usage
+
+```bash
+# Direct sandboxed opencode
+opencode-sandboxed
+
+# With agent card
+cat > /etc/agents/dev.json << 'EOF'
+{
+  "agent_id": "dev",
+  "workspace": "/mnt/agents/dev",
+  "proxy": "http://127.0.0.1:3128",
+  "api_key_file": "/run/secrets/anthropic-key"
+}
+EOF
+
+# Spawn dynamically (no rebuild)
+agent-spawn /etc/agents/dev.json
+
+# Or via systemd
+systemctl start sandboxed-agent@dev
+journalctl -fu sandboxed-agent@dev
 ```
 
 Benefits:
+- **Apache 2.0** - commercial use allowed
 - Same battle-tested sandbox as Claude Code
 - FS + network isolation out of the box
 - Domain allowlist via proxy
 - Maintained by Anthropic
+- NixOS-native with systemd templates
 
 ## Architecture
 
