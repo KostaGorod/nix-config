@@ -1,0 +1,52 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: smoke-gpu-nvidia-smi
+spec:
+  restartPolicy: Never
+  containers:
+    - name: test
+      image: ubuntu:22.04
+      command: ["/bin/bash", "-c"]
+      args:
+        - |
+          set -euo pipefail
+
+          echo "[smoke] /dev/nvidia* devices (from host /dev mount):"
+          ls -la /dev/nvidia* || true
+
+          echo "[smoke] running nvidia-smi via host binary:"
+          /host-bin/nvidia-smi
+      resources:
+        limits:
+          nvidia.com/gpu: 1
+      env:
+        - name: LD_LIBRARY_PATH
+          value: "/run/opengl-driver/lib"
+      securityContext:
+        privileged: true
+      volumeMounts:
+        - name: dev
+          mountPath: /dev
+        - name: nvidia-driver
+          mountPath: /run/opengl-driver
+          readOnly: true
+        - name: nix-store
+          mountPath: /nix/store
+          readOnly: true
+        - name: host-bin
+          mountPath: /host-bin
+          readOnly: true
+  volumes:
+    - name: dev
+      hostPath:
+        path: /dev
+    - name: nvidia-driver
+      hostPath:
+        path: /run/opengl-driver
+    - name: nix-store
+      hostPath:
+        path: /nix/store
+    - name: host-bin
+      hostPath:
+        path: /run/current-system/sw/bin
