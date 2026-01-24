@@ -34,6 +34,7 @@ in
     ../../modules/nixos/nix-ld.nix # nix-ld for dynamic binary support (uv, python venvs)
     ../../modules/nixos/opencode.nix # OpenCode AI coding agent
     ../../modules/nixos/claude-code.nix # Claude Code CLI
+    ../../modules/nixos/mem0.nix # Mem0 AI memory layer
     # ../../modules/nixos/codex.nix # Numtide Codex AI assistant (temporarily disabled)
     ../../modules/nixos/bitwarden.nix # Bitwarden password manager (unstable)
 
@@ -261,6 +262,9 @@ in
 
   # Enable OpenCode AI coding agent
   programs.opencode.enable = true;
+
+  # Enable Mem0 AI memory layer for persistent agent memory
+  programs.mem0.enable = true;
 
   # Enable Abacus.AI DeepAgent desktop client and CLI
   programs.abacusai.enable = true;
