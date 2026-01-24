@@ -1,0 +1,121 @@
+# GitOps Staging Deployment for gpu-node-1
+# Triggered on push to 'stage' branch - self-hosted runner applies config locally
+
+name: Stage Deploy gpu-node-1
+
+on:
+  push:
+    branches:
+      - stage
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (build only, no switch)'
+        required: false
+        default: 'false'
+        type: boolean
+
+# Prevent concurrent deployments
+concurrency:
+  group: staging-deploy
+  cancel-in-progress: false
+
+jobs:
+  # =============================================================================
+  # VALIDATE - Run on any available runner
+  # =============================================================================
+  validate:
+    name: Validate Flake
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v27
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      - name: Check flake
+        run: nix flake check --no-build
+
+      - name: Validate gpu-node-1 config
+        run: |
+          echo "Validating gpu-node-1 configuration..."
+          nix eval .#nixosConfigurations.gpu-node-1.config.system.build.toplevel --raw > /dev/null
+          echo "Configuration is valid"
+
+  # =============================================================================
+  # DEPLOY - Run on gpu-node-1 self-hosted runner
+  # =============================================================================
+  deploy:
+    name: Deploy to gpu-node-1
+    needs: validate
+    runs-on: [self-hosted, gpu-node-1]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Pre-deployment info
+        run: |
+          echo "=== Deployment Info ==="
+          echo "Host: $(hostname)"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Triggered by: ${{ github.actor }}"
+          echo "Dry run: ${{ inputs.dry_run || 'false' }}"
+          echo "========================"
+
+      - name: Build configuration
+        run: |
+          echo "Building gpu-node-1 configuration..."
+          nix build .#nixosConfigurations.gpu-node-1.config.system.build.toplevel \
+            --no-link \
+            --print-build-logs
+          echo "Build successful"
+
+      - name: Deploy (switch)
+        if: ${{ inputs.dry_run != 'true' }}
+        run: |
+          echo "Switching to new configuration..."
+          sudo nixos-rebuild switch --flake .#gpu-node-1
+          echo "Deployment complete"
+
+      - name: Verify deployment
+        if: ${{ inputs.dry_run != 'true' }}
+        run: |
+          echo "=== Post-deployment Verification ==="
+          echo "Current system generation:"
+          sudo nix-env --list-generations --profile /nix/var/nix/profiles/system | tail -5
+          echo ""
+          echo "Running services check..."
+          systemctl is-active k3s.service && echo "K3s: OK" || echo "K3s: FAILED"
+          echo "===================================="
+
+      - name: Rollback on failure
+        if: failure() && inputs.dry_run != 'true'
+        run: |
+          echo "Deployment failed, attempting rollback..."
+          sudo nixos-rebuild switch --rollback || true
+          echo "Rollback attempted"
+
+  # =============================================================================
+  # NOTIFY - Post-deployment notification
+  # =============================================================================
+  notify:
+    name: Notify
+    needs: [validate, deploy]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Deployment status
+        run: |
+          if [ "${{ needs.deploy.result }}" == "success" ]; then
+            echo "Deployment to gpu-node-1 successful"
+          else
+            echo "Deployment to gpu-node-1 failed"
+            exit 1
+          fi

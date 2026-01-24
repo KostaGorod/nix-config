@@ -5,6 +5,7 @@
     ./hardware-configuration.nix
     ../../modules/k3s/server.nix
     ../../modules/nvidia/default.nix
+    ../../modules/github-runner.nix
   ];
 
   # =============================================================================
@@ -100,7 +101,7 @@
   # =============================================================================
   # SERVICES
   # =============================================================================
-  
+
   # SSH
   services.openssh = {
     enable = true;
@@ -108,6 +109,16 @@
       PermitRootLogin = "no";
       PasswordAuthentication = false;
     };
+  };
+
+  # GitHub Actions Self-Hosted Runner (GitOps deployments)
+  # To enable: create token file and set enable = true
+  # Get token from: https://github.com/KostaGorod/nix-config/settings/actions/runners/new
+  services.github-runner-nixos = {
+    enable = false;  # Set to true after creating token file
+    url = "https://github.com/KostaGorod/nix-config";
+    tokenFile = "/run/secrets/github-runner-token";
+    labels = [ "nixos" "staging" "gpu" ];
   };
 
   # =============================================================================
