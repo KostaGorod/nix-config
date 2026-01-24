@@ -29,7 +29,7 @@ in
 
   # 2. Import the networking modules from the stable nixpkgs
   imports = [
-    ./hardware-configuration.nix # Include the results of the hardware scan.
+    # hardware-configuration.nix imported via default.nix
     ../../modules/nixos/tailscale.nix # Tailscale configuration module
     ../../modules/nixos/nix-ld.nix # nix-ld for dynamic binary support (uv, python venvs)
     ../../modules/nixos/opencode.nix # OpenCode AI coding agent
