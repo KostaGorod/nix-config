@@ -270,6 +270,15 @@ in
     userId = "kosta";
   };
 
+  # Mem0 MCP server as systemd service (SSE transport)
+  services.mem0 = {
+    enable = true;
+    port = 8050;
+    userId = "kosta";
+    # host = "0.0.0.0";  # uncomment to expose to network
+    # openFirewall = true;
+  };
+
   # Enable Abacus.AI DeepAgent desktop client and CLI
   programs.abacusai.enable = true;
 

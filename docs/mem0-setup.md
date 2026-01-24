@@ -4,29 +4,78 @@ Mem0 provides persistent memory capabilities for AI coding agents like OpenCode 
 
 ## Installation
 
-The `mem0` module is enabled in your NixOS configuration with self-hosted mode. After rebuilding:
-
 ```bash
 sudo nixos-rebuild switch --flake .#rocinante
 ```
 
 ## Configuration
 
-Current settings in `configuration.nix`:
-
 ```nix
+# User-level tools and wrapper scripts
 programs.mem0 = {
   enable = true;
   selfHosted = true;
   userId = "kosta";
 };
+
+# Systemd service (SSE transport on port 8050)
+services.mem0 = {
+  enable = true;
+  port = 8050;
+  userId = "kosta";
+};
 ```
 
-Data is stored locally at `~/.local/share/mem0/qdrant`.
+## Verify Service
 
-## OpenCode MCP Integration
+```bash
+# Check service status
+systemctl status mem0
+
+# View logs
+journalctl -u mem0 -f
+
+# Test with curl
+curl http://localhost:8050/sse
+
+# Test health/info endpoint
+curl http://localhost:8050/
+```
+
+## OpenCode MCP Integration (SSE)
 
 Add to `~/.config/opencode/opencode.json`:
+
+```json
+{
+  "mcp": {
+    "mem0": {
+      "transport": "sse",
+      "url": "http://localhost:8050/sse",
+      "env": {
+        "MEM0_DEFAULT_USER_ID": "kosta"
+      }
+    }
+  }
+}
+```
+
+## Claude Code MCP Integration (SSE)
+
+```json
+{
+  "mcpServers": {
+    "mem0": {
+      "transport": "sse",
+      "url": "http://localhost:8050/sse"
+    }
+  }
+}
+```
+
+## Alternative: Stdio Mode (on-demand)
+
+If you prefer stdio mode (no persistent service), use the wrapper script:
 
 ```json
 {
@@ -42,29 +91,9 @@ Add to `~/.config/opencode/opencode.json`:
 }
 ```
 
-**Note:** Self-hosted mode requires `OPENAI_API_KEY` for embeddings. Set it in your environment or add to the `env` block above.
+## Using Local Embeddings (Ollama)
 
-## Claude Code MCP Integration
-
-Add to your Claude Code MCP settings:
-
-```json
-{
-  "mcpServers": {
-    "mem0": {
-      "command": "uvx",
-      "args": ["mem0-mcp"],
-      "env": {
-        "MEM0_DEFAULT_USER_ID": "kosta"
-      }
-    }
-  }
-}
-```
-
-## Using Alternative Embedding Models
-
-For fully local operation without OpenAI, configure mem0 to use Ollama or other local models. Create `~/.config/mem0/config.yaml`:
+For fully local operation without OpenAI, create `~/.config/mem0/config.yaml`:
 
 ```yaml
 embedder:
@@ -82,36 +111,18 @@ llm:
 vector_store:
   provider: qdrant
   config:
-    path: ~/.local/share/mem0/qdrant
+    path: /var/lib/mem0/qdrant
 ```
 
-## Python Library Usage
+## Data Locations
 
-```bash
-# Install mem0ai
-uv pip install mem0ai
-```
-
-```python
-from mem0 import Memory
-
-m = Memory()
-
-# Add memories
-messages = [
-    {"role": "user", "content": "I prefer NixOS with flakes."},
-    {"role": "assistant", "content": "Noted! I'll remember your NixOS preference."}
-]
-m.add(messages, user_id="kosta")
-
-# Search memories
-results = m.search("operating system", user_id="kosta")
-```
+- **Service data**: `/var/lib/mem0/qdrant`
+- **User data**: `~/.local/share/mem0/qdrant`
 
 ## Environment Variables
 
 - `MEM0_DEFAULT_USER_ID`: Default user ID (set to "kosta")
-- `MEM0_DATA_DIR`: Local storage path (`~/.local/share/mem0`)
+- `MEM0_DATA_DIR`: Storage path
 - `OPENAI_API_KEY`: Required for embeddings (unless using Ollama)
 
 ## Resources
