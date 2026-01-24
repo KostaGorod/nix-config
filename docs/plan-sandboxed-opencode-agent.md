@@ -972,6 +972,245 @@ Each worker exposes an A2A-compliant agent card:
      │                               │                               │
 ```
 
+### Real-time Streaming: A2A vs Claude Code Subagents
+
+| Aspect | Claude Code `Task` tool | A2A Protocol |
+|--------|------------------------|--------------|
+| **Process model** | In-process subagent | Separate networked process |
+| **Context sharing** | Full conversation history | Explicit message passing |
+| **Communication** | Direct memory/IPC | HTTP + SSE streaming |
+| **Streaming** | Token-by-token via parent | SSE events |
+| **Isolation** | Same sandbox as parent | Separate sandbox per worker |
+| **Scaling** | Single machine | Distributed across K8s |
+
+### SSE (Server-Sent Events) Streaming Details
+
+A2A uses SSE for real-time updates from worker to captain:
+
+```
+POST /tasks/send HTTP/1.1
+Content-Type: application/json
+Accept: text/event-stream
+
+{"id": "task-123", "message": {"role": "user", "parts": [{"text": "Build API"}]}}
+
+---
+
+HTTP/1.1 200 OK
+Content-Type: text/event-stream
+Cache-Control: no-cache
+
+event: task.status
+data: {"id": "task-123", "status": "running"}
+
+event: task.message
+data: {"role": "assistant", "parts": [{"text": "Creating database models..."}]}
+
+event: task.message
+data: {"role": "assistant", "parts": [{"text": "Adding API routes..."}]}
+
+event: task.artifact
+data: {"name": "models.py", "mimeType": "text/x-python", "data": "base64..."}
+
+event: task.artifact
+data: {"name": "routes.py", "mimeType": "text/x-python", "data": "base64..."}
+
+event: task.status
+data: {"id": "task-123", "status": "completed", "artifacts": ["models.py", "routes.py"]}
+```
+
+### Captain: Real-time SSE Consumer
+
+```python
+# captain/a2a_client.py
+import httpx
+import json
+from typing import AsyncIterator
+
+class A2AClient:
+    """Captain's client for communicating with workers via A2A"""
+
+    def __init__(self, worker_url: str, auth_token: str = None):
+        self.worker_url = worker_url
+        self.headers = {"Authorization": f"Bearer {auth_token}"} if auth_token else {}
+
+    async def discover(self) -> dict:
+        """Get worker's agent card"""
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                f"{self.worker_url}/.well-known/agent.json",
+                headers=self.headers
+            )
+            return resp.json()
+
+    async def send_task(self, task_id: str, message: str) -> AsyncIterator[dict]:
+        """Send task and stream responses via SSE"""
+        payload = {
+            "id": task_id,
+            "message": {
+                "role": "user",
+                "parts": [{"text": message}]
+            }
+        }
+
+        async with httpx.AsyncClient() as client:
+            async with client.stream(
+                "POST",
+                f"{self.worker_url}/tasks/send",
+                json=payload,
+                headers={**self.headers, "Accept": "text/event-stream"},
+                timeout=None  # Long-running tasks
+            ) as response:
+                async for line in response.aiter_lines():
+                    if line.startswith("data: "):
+                        data = json.loads(line[6:])
+                        yield data  # Stream each event to caller
+
+    async def get_task(self, task_id: str) -> dict:
+        """Get task status (non-streaming)"""
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                f"{self.worker_url}/tasks/{task_id}",
+                headers=self.headers
+            )
+            return resp.json()
+
+
+# Usage in captain
+async def execute_subtask(worker_url: str, task: str):
+    client = A2AClient(worker_url)
+
+    # Discover worker capabilities
+    card = await client.discover()
+    print(f"Worker skills: {[s['name'] for s in card['skills']]}")
+
+    # Send task and stream progress
+    async for event in client.send_task("task-123", task):
+        match event.get("status"):
+            case "running":
+                print(f"⏳ Worker started...")
+            case "completed":
+                print(f"✅ Done! Artifacts: {event.get('artifacts', [])}")
+                return event
+            case "failed":
+                print(f"❌ Failed: {event.get('error')}")
+                raise Exception(event.get("error"))
+
+        # Stream messages (like subagent output)
+        if "parts" in event:
+            for part in event["parts"]:
+                if "text" in part:
+                    print(f"  📝 {part['text']}")
+```
+
+### Worker: Real-time SSE Producer
+
+```python
+# worker/a2a_server.py
+from fastapi import FastAPI, Request
+from fastapi.responses import StreamingResponse
+from sse_starlette.sse import EventSourceResponse
+import asyncio
+import subprocess
+import os
+
+app = FastAPI()
+
+@app.get("/.well-known/agent.json")
+async def agent_card():
+    return {
+        "name": "opencode-worker",
+        "url": os.environ.get("WORKER_URL", "http://localhost:8080"),
+        "skills": [{"id": "code", "name": "Code Generation"}],
+        "capabilities": {"streaming": True}
+    }
+
+@app.post("/tasks/send")
+async def send_task(request: Request):
+    body = await request.json()
+    task_id = body["id"]
+    message = body["message"]["parts"][0]["text"]
+
+    async def generate_events():
+        # 1. Signal task started
+        yield {"event": "task.status", "data": {"id": task_id, "status": "running"}}
+
+        # 2. Run opencode and stream output
+        process = await asyncio.create_subprocess_exec(
+            "opencode", "--task", message,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+            cwd="/workspace"
+        )
+
+        # 3. Stream stdout as messages
+        async for line in process.stdout:
+            text = line.decode().strip()
+            if text:
+                yield {
+                    "event": "task.message",
+                    "data": {"role": "assistant", "parts": [{"text": text}]}
+                }
+
+        await process.wait()
+
+        # 4. Collect artifacts (generated files)
+        artifacts = []
+        for f in os.listdir("/workspace"):
+            if f.endswith((".py", ".js", ".ts", ".go")):
+                artifacts.append({"name": f})
+
+        # 5. Signal completion
+        yield {
+            "event": "task.status",
+            "data": {
+                "id": task_id,
+                "status": "completed" if process.returncode == 0 else "failed",
+                "artifacts": artifacts
+            }
+        }
+
+    return EventSourceResponse(generate_events())
+
+@app.get("/tasks/{task_id}")
+async def get_task(task_id: str):
+    # Return cached task status
+    return {"id": task_id, "status": "completed"}
+```
+
+### Comparison: Subagent-style vs A2A
+
+**Claude Code subagent (in-process):**
+```python
+# Parent agent calls subagent directly
+result = await task_tool.run(
+    prompt="Build a REST API",
+    subagent_type="Explore"
+)
+# Blocks until done, streams via parent's connection
+```
+
+**A2A (networked, like microservices):**
+```python
+# Captain spawns isolated worker, communicates via HTTP+SSE
+worker_url = await spawn_worker("task-123")
+async for event in a2a_client.send_task(worker_url, "Build a REST API"):
+    print(event)  # Real-time streaming via SSE
+await terminate_worker("task-123")
+```
+
+**When to use which:**
+
+| Use Case | Subagent (Task tool) | A2A (Captain/Worker) |
+|----------|---------------------|---------------------|
+| Quick exploration | ✅ | Overkill |
+| Trusted code | ✅ | ✅ |
+| Untrusted/sandboxed | ❌ | ✅ |
+| Multi-machine | ❌ | ✅ |
+| Different LLM providers | ❌ | ✅ |
+| Long-running tasks | Timeout issues | ✅ (persistent workers) |
+| Audit/compliance | Shared context | ✅ (isolated, logged) |
+
 ### Worker with A2A Endpoint (Python SDK)
 
 ```python
