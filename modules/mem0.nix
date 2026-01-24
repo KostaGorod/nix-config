@@ -86,7 +86,7 @@ in
       };
 
       apiKeyFile = lib.mkOption {
-        type = lib.types.nullOr lib.types.path;
+        type = lib.types.nullOr lib.types.str;
         default = null;
         description = "Path to file containing the embedder API key";
       };
@@ -107,7 +107,7 @@ in
       };
 
       apiKeyFile = lib.mkOption {
-        type = lib.types.nullOr lib.types.path;
+        type = lib.types.nullOr lib.types.str;
         default = null;
         description = "Path to file containing the LLM API key";
       };
@@ -170,12 +170,8 @@ in
           MEM0_DATA_DIR = svcCfg.dataDir;
           MEM0_DEFAULT_USER_ID = svcCfg.userId;
           HOME = svcCfg.dataDir;
-
-          # Embedder configuration
           MEM0_EMBEDDER_PROVIDER = svcCfg.embedder.provider;
           MEM0_EMBEDDER_MODEL = svcCfg.embedder.model;
-
-          # LLM configuration
           MEM0_LLM_PROVIDER = svcCfg.llm.provider;
           MEM0_LLM_MODEL = svcCfg.llm.model;
         };
@@ -184,14 +180,6 @@ in
           Type = "simple";
           Restart = "on-failure";
           RestartSec = "5s";
-
-          # Load API keys from files if specified
-          LoadCredential = lib.optional (svcCfg.embedder.apiKeyFile != null)
-            "embedder-api-key:${svcCfg.embedder.apiKeyFile}"
-          ++ lib.optional (svcCfg.llm.apiKeyFile != null)
-            "llm-api-key:${svcCfg.llm.apiKeyFile}";
-
-          # Hardening
           NoNewPrivileges = true;
           ProtectSystem = "strict";
           ProtectHome = true;
@@ -199,7 +187,6 @@ in
           PrivateTmp = true;
         };
 
-        # Load API keys from credential files into environment
         script = let
           embedderKeyEnv = if svcCfg.embedder.provider == "voyageai" then "VOYAGE_API_KEY"
                           else if svcCfg.embedder.provider == "openai" then "OPENAI_API_KEY"
@@ -209,10 +196,10 @@ in
                      else "";
         in ''
           ${lib.optionalString (svcCfg.embedder.apiKeyFile != null && embedderKeyEnv != "") ''
-            export ${embedderKeyEnv}="$(cat $CREDENTIALS_DIRECTORY/embedder-api-key)"
+            export ${embedderKeyEnv}="$(cat ${svcCfg.embedder.apiKeyFile})"
           ''}
           ${lib.optionalString (svcCfg.llm.apiKeyFile != null && llmKeyEnv != "") ''
-            export ${llmKeyEnv}="$(cat $CREDENTIALS_DIRECTORY/llm-api-key)"
+            export ${llmKeyEnv}="$(cat ${svcCfg.llm.apiKeyFile})"
           ''}
           exec ${pkgs-unstable.uv}/bin/uvx mem0-mcp --transport sse --host ${svcCfg.host} --port ${toString svcCfg.port}
         '';
