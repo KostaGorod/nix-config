@@ -127,18 +127,7 @@ in
     nix-direnv.enable = true;
   };
 
-  # User account definition (packages moved to users/kosta/)
-  users.users.kosta = {
-    isNormalUser = true;
-    extraGroups = [
-      "wheel"
-      "networkmanager"
-      "docker"
-      "adbusers"
-    ];
-    shell = pkgs.bash;
-    # packages are now in users/kosta/packages.nix via home-manager
-  };
+  # User account defined in configuration.nix
 
   # Minimal system packages (emergency/system-wide tools only)
   environment.systemPackages = with pkgs; [
