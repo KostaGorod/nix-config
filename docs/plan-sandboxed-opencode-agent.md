@@ -669,65 +669,12 @@ spec:
             sizeLimit: 1Gi
 ```
 
-### NixOS: Declarative K8s Manifest Deployment
+### Deploy Anywhere (GitOps)
 
-```nix
-# modules/opencode-k8s/default.nix
-{ config, lib, pkgs, ... }:
-
-let
-  cfg = config.services.opencode-k8s;
-
-  # Embed manifests from Git
-  k8sManifests = pkgs.fetchFromGitHub {
-    owner = "your-org";
-    repo = "opencode-k8s-manifests";
-    rev = cfg.manifestsVersion;
-    hash = "sha256-xxx";
-  };
-
-in {
-  options.services.opencode-k8s = {
-    enable = lib.mkEnableOption "OpenCode agents on K3s";
-
-    manifestsVersion = lib.mkOption {
-      type = lib.types.str;
-      default = "v1.0.0";
-      description = "Git tag/commit of k8s manifests";
-    };
-
-    replicas = lib.mkOption {
-      type = lib.types.int;
-      default = 2;
-    };
-  };
-
-  config = lib.mkIf cfg.enable {
-    assertions = [{
-      assertion = config.services.k3s.enable;
-      message = "K3s must be enabled";
-    }];
-
-    # Auto-deploy manifests via K3s
-    environment.etc."rancher/k3s/server/manifests/opencode-agent.yaml".source =
-      pkgs.runCommand "opencode-kustomize" {
-        nativeBuildInputs = [ pkgs.kustomize ];
-      } ''
-        kustomize build ${k8sManifests}/k8s/opencode-agent \
-          | sed 's/replicas: 2/replicas: ${toString cfg.replicas}/' \
-          > $out
-      '';
-  };
-}
-```
-
-### Deploy Anywhere
+K8s manifests deploy independently - no NixOS module needed.
 
 ```bash
-# On NixOS K3s (auto-deployed)
-services.opencode-k8s.enable = true;
-
-# On any K8s cluster
+# Any K8s cluster (manual)
 kubectl apply -k k8s/opencode-agent/
 
 # With ArgoCD
@@ -741,6 +688,434 @@ flux create kustomization opencode-agent \
   --source=GitRepository/infra \
   --path="./k8s/opencode-agent"
 ```
+
+**NixOS only manages infrastructure** (K3s, storage, proxy, secrets) - not workloads.
+
+---
+
+## Captain Agent: Orchestrating Sandboxed Agents via A2A
+
+A "captain" agent orchestrates worker agents, spinning them up/down dynamically and communicating via the [A2A protocol](https://a2a-protocol.org/latest/).
+
+### A2A Protocol Overview
+
+[Agent2Agent (A2A)](https://github.com/a2aproject/A2A) is Google's open protocol (now Linux Foundation) for agent interoperability:
+
+| Concept | Description |
+|---------|-------------|
+| **Agent Card** | JSON at `/.well-known/agent.json` describing capabilities |
+| **Task** | Unit of work with lifecycle (pending → running → completed/failed) |
+| **Message** | Communication between agents (text, files, structured data) |
+| **Artifact** | Output produced by agent (files, data) |
+
+**A2A vs MCP**:
+- **MCP** (Anthropic): Agent ↔ Tools (give agent access to APIs, DBs)
+- **A2A** (Google): Agent ↔ Agent (agents collaborate on tasks)
+
+### Architecture: Captain + Workers
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            Captain Agent                                     │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │  • Receives high-level tasks from user/API                          │    │
+│  │  • Decomposes into subtasks                                         │    │
+│  │  • Spawns sandboxed worker agents (via K8s API or systemd)          │    │
+│  │  • Communicates with workers via A2A protocol                       │    │
+│  │  • Aggregates results, reports back                                 │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│         │                    │                    │                          │
+│         │ A2A                │ A2A                │ A2A                      │
+│         ▼                    ▼                    ▼                          │
+│  ┌─────────────┐      ┌─────────────┐      ┌─────────────┐                  │
+│  │  Worker 1   │      │  Worker 2   │      │  Worker N   │                  │
+│  │  (sandbox)  │      │  (sandbox)  │      │  (sandbox)  │                  │
+│  │             │      │             │      │             │                  │
+│  │ opencode    │      │ opencode    │      │ claude-code │                  │
+│  │ /workspace1 │      │ /workspace2 │      │ /workspaceN │                  │
+│  └─────────────┘      └─────────────┘      └─────────────┘                  │
+│         │                    │                    │                          │
+│         └────────────────────┴────────────────────┘                          │
+│                              │                                               │
+│                    ┌─────────┴─────────┐                                    │
+│                    │   Shared Proxy    │  ← All network via proxy           │
+│                    │   (audit log)     │                                    │
+│                    └───────────────────┘                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Agent Card for Worker Agents
+
+Each worker exposes an A2A-compliant agent card:
+
+```json
+// /.well-known/agent.json (served by worker)
+{
+  "name": "opencode-worker",
+  "description": "Sandboxed OpenCode agent for code tasks",
+  "url": "http://worker-1.agents.svc:8080",
+  "version": "1.0.0",
+  "capabilities": {
+    "streaming": true,
+    "pushNotifications": false
+  },
+  "skills": [
+    {
+      "id": "code-generation",
+      "name": "Code Generation",
+      "description": "Generate code from natural language",
+      "inputModes": ["text"],
+      "outputModes": ["text", "file"]
+    },
+    {
+      "id": "code-review",
+      "name": "Code Review",
+      "description": "Review and suggest improvements",
+      "inputModes": ["text", "file"],
+      "outputModes": ["text"]
+    }
+  ],
+  "authentication": {
+    "schemes": ["bearer"]
+  }
+}
+```
+
+### Captain Agent Implementation
+
+```nix
+# flakes/captain-agent/flake.nix
+{
+  description = "Captain agent that orchestrates sandboxed workers via A2A";
+
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+  };
+
+  outputs = { self, nixpkgs, ... }:
+    let
+      pkgs = import nixpkgs { system = "x86_64-linux"; };
+
+      # Captain agent script
+      captainAgent = pkgs.writeShellScriptBin "captain-agent" ''
+        set -euo pipefail
+
+        # Captain config
+        CAPTAIN_PORT="''${CAPTAIN_PORT:-8000}"
+        WORKERS_DIR="''${WORKERS_DIR:-/var/lib/captain/workers}"
+        K8S_NAMESPACE="''${K8S_NAMESPACE:-opencode-agents}"
+
+        mkdir -p "$WORKERS_DIR"
+
+        # Spawn a new worker agent
+        spawn_worker() {
+          local TASK_ID="$1"
+          local WORKSPACE="/mnt/agents/$TASK_ID"
+
+          # Create agent card for this worker
+          cat > "$WORKERS_DIR/$TASK_ID.json" << EOF
+        {
+          "agent_id": "$TASK_ID",
+          "workspace": "$WORKSPACE",
+          "proxy": "http://squid-proxy:3128",
+          "a2a_port": 8080
+        }
+        EOF
+
+          # Option 1: Spawn via systemd (NixOS host)
+          if command -v systemctl &>/dev/null; then
+            systemctl start "sandboxed-agent@$TASK_ID"
+          fi
+
+          # Option 2: Spawn via K8s (portable)
+          if command -v kubectl &>/dev/null; then
+            kubectl -n "$K8S_NAMESPACE" run "worker-$TASK_ID" \
+              --image=ghcr.io/your-org/opencode-agent:latest \
+              --env="AGENT_ID=$TASK_ID" \
+              --env="A2A_ENABLED=true" \
+              --restart=Never
+          fi
+
+          echo "http://worker-$TASK_ID.$K8S_NAMESPACE.svc:8080"
+        }
+
+        # Terminate a worker
+        terminate_worker() {
+          local TASK_ID="$1"
+
+          # Systemd
+          systemctl stop "sandboxed-agent@$TASK_ID" 2>/dev/null || true
+
+          # K8s
+          kubectl -n "$K8S_NAMESPACE" delete pod "worker-$TASK_ID" 2>/dev/null || true
+
+          rm -f "$WORKERS_DIR/$TASK_ID.json"
+        }
+
+        # Send A2A task to worker
+        send_task() {
+          local WORKER_URL="$1"
+          local TASK_PAYLOAD="$2"
+
+          ${pkgs.curl}/bin/curl -s -X POST "$WORKER_URL/tasks/send" \
+            -H "Content-Type: application/json" \
+            -d "$TASK_PAYLOAD"
+        }
+
+        # Get task status
+        get_task_status() {
+          local WORKER_URL="$1"
+          local TASK_ID="$2"
+
+          ${pkgs.curl}/bin/curl -s "$WORKER_URL/tasks/$TASK_ID"
+        }
+
+        # Main captain loop (simplified)
+        echo "[captain] Starting on port $CAPTAIN_PORT"
+
+        # In real implementation: HTTP server handling A2A requests
+        # For now, expose simple CLI
+        case "''${1:-}" in
+          spawn)
+            spawn_worker "$2"
+            ;;
+          terminate)
+            terminate_worker "$2"
+            ;;
+          send)
+            send_task "$2" "$3"
+            ;;
+          status)
+            get_task_status "$2" "$3"
+            ;;
+          *)
+            echo "Usage: captain-agent <spawn|terminate|send|status> [args]"
+            ;;
+        esac
+      '';
+
+      # A2A sidecar for workers (adds A2A HTTP endpoint)
+      a2aSidecar = pkgs.writeShellScriptBin "a2a-sidecar" ''
+        # Lightweight HTTP server that wraps agent with A2A protocol
+        # In production: use proper A2A SDK (Python/TypeScript)
+
+        PORT="''${A2A_PORT:-8080}"
+        AGENT_CMD="''${AGENT_CMD:-opencode}"
+
+        # Serve agent card
+        serve_agent_card() {
+          cat << 'EOF'
+        HTTP/1.1 200 OK
+        Content-Type: application/json
+
+        {"name":"opencode-worker","version":"1.0","skills":[{"id":"code"}]}
+        EOF
+        }
+
+        echo "[a2a-sidecar] Listening on :$PORT"
+        # In production: use socat or proper HTTP server
+        while true; do
+          echo "Waiting for A2A requests..."
+          sleep 1
+        done
+      '';
+
+    in {
+      packages.x86_64-linux = {
+        default = captainAgent;
+        captain-agent = captainAgent;
+        a2a-sidecar = a2aSidecar;
+      };
+    };
+}
+```
+
+### A2A Communication Flow
+
+```
+┌──────────┐                    ┌──────────┐                    ┌──────────┐
+│  User    │                    │ Captain  │                    │ Worker   │
+└────┬─────┘                    └────┬─────┘                    └────┬─────┘
+     │                               │                               │
+     │  "Build a REST API"           │                               │
+     │ ─────────────────────────────>│                               │
+     │                               │                               │
+     │                               │  1. Spawn worker              │
+     │                               │ ─────────────────────────────>│
+     │                               │                               │
+     │                               │  2. GET /.well-known/agent.json
+     │                               │ ─────────────────────────────>│
+     │                               │                               │
+     │                               │  Agent Card (capabilities)    │
+     │                               │ <─────────────────────────────│
+     │                               │                               │
+     │                               │  3. POST /tasks/send          │
+     │                               │  {task: "Build REST API"}     │
+     │                               │ ─────────────────────────────>│
+     │                               │                               │
+     │                               │  4. SSE: task updates         │
+     │                               │ <─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ │
+     │                               │     (streaming progress)      │
+     │                               │                               │
+     │  Progress updates             │                               │
+     │ <─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ │                               │
+     │                               │                               │
+     │                               │  5. Task completed            │
+     │                               │  {artifacts: [files...]}      │
+     │                               │ <─────────────────────────────│
+     │                               │                               │
+     │                               │  6. Terminate worker          │
+     │                               │ ─────────────────────────────>│
+     │                               │                               │
+     │  Final result                 │                               │
+     │ <─────────────────────────────│                               │
+     │                               │                               │
+```
+
+### Worker with A2A Endpoint (Python SDK)
+
+```python
+# worker/a2a_server.py
+from a2a import A2AServer, AgentCard, Task, Message
+import subprocess
+import os
+
+class OpenCodeWorker(A2AServer):
+    def __init__(self):
+        self.card = AgentCard(
+            name="opencode-worker",
+            description="Sandboxed OpenCode agent",
+            skills=[
+                {"id": "code-gen", "name": "Code Generation"},
+                {"id": "code-review", "name": "Code Review"},
+            ]
+        )
+
+    async def handle_task(self, task: Task) -> Task:
+        """Execute task in sandboxed opencode"""
+        workspace = os.environ.get("WORKSPACE", "/workspace")
+
+        # Write task to file for opencode
+        task_file = f"{workspace}/.task.md"
+        with open(task_file, "w") as f:
+            f.write(task.message.text)
+
+        # Run opencode (already sandboxed by container/bwrap)
+        result = subprocess.run(
+            ["opencode", "--task", task_file],
+            cwd=workspace,
+            capture_output=True,
+            text=True
+        )
+
+        # Return result
+        task.status = "completed" if result.returncode == 0 else "failed"
+        task.artifacts = self._collect_artifacts(workspace)
+        return task
+
+    def _collect_artifacts(self, workspace):
+        # Collect generated files as artifacts
+        # ...
+        pass
+
+if __name__ == "__main__":
+    worker = OpenCodeWorker()
+    worker.serve(port=8080)
+```
+
+### K8s Deployment with A2A
+
+```yaml
+# k8s/opencode-agent/deployment-a2a.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opencode-worker
+spec:
+  replicas: 0  # Scale dynamically via captain
+  template:
+    spec:
+      containers:
+        # Main agent
+        - name: agent
+          image: ghcr.io/your-org/opencode-agent:latest
+          env:
+            - name: A2A_ENABLED
+              value: "true"
+          volumeMounts:
+            - name: workspace
+              mountPath: /workspace
+
+        # A2A sidecar (exposes HTTP endpoint)
+        - name: a2a-sidecar
+          image: ghcr.io/your-org/a2a-sidecar:latest
+          ports:
+            - containerPort: 8080
+              name: a2a
+          env:
+            - name: AGENT_SOCKET
+              value: "/tmp/agent.sock"
+
+      volumes:
+        - name: workspace
+          emptyDir: {}
+---
+# Service for A2A discovery
+apiVersion: v1
+kind: Service
+metadata:
+  name: opencode-worker
+spec:
+  selector:
+    app: opencode-worker
+  ports:
+    - port: 8080
+      name: a2a
+```
+
+### Captain Spawning Workers Dynamically
+
+```bash
+# Captain receives task, spawns worker
+captain-agent spawn task-123
+
+# Worker comes up, captain discovers it via A2A
+curl http://worker-task-123.agents.svc:8080/.well-known/agent.json
+
+# Captain sends task
+curl -X POST http://worker-task-123.agents.svc:8080/tasks/send \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "task-123",
+    "message": {
+      "role": "user",
+      "parts": [{"text": "Build a REST API for user management"}]
+    }
+  }'
+
+# Captain polls for completion or uses SSE streaming
+curl http://worker-task-123.agents.svc:8080/tasks/task-123
+
+# Task done, captain terminates worker
+captain-agent terminate task-123
+```
+
+### Security Considerations
+
+| Concern | Mitigation |
+|---------|------------|
+| Captain compromise | Captain runs with minimal privileges, only K8s/systemd spawn rights |
+| Worker escape | Workers are sandboxed (bwrap/container), can't affect captain |
+| A2A auth | Bearer tokens between captain↔worker, mTLS in production |
+| Network | Workers can only reach proxy, captain controls proxy allowlist |
+| Resource exhaustion | Captain enforces limits per task, auto-terminates on TTL |
+
+### References
+
+- [A2A Protocol Spec](https://a2a-protocol.org/latest/)
+- [A2A GitHub](https://github.com/a2aproject/A2A)
+- [A2A Python SDK](https://github.com/a2aproject/a2a-python)
+- [Google ADK with A2A](https://developers.googleblog.com/en/a2a-a-new-era-of-agent-interoperability/)
 
 ---
 
