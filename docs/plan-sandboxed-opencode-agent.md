@@ -8,6 +8,73 @@ Deploy a heavily sandboxed AI coding agent (`opencode`) with:
 - **Network isolation**: All internet traffic routed through proxy
 - **Dynamic runtime**: Spawn/destroy agents without nixos-rebuild
 - **K3s deployment**: For flexibility, redundancy, and orchestration
+- **OS-agnostic workloads**: Agents run in OCI containers, portable across platforms
+
+---
+
+## OS-Agnostic Architecture
+
+For portability, separate **infrastructure** (NixOS-managed) from **workloads** (containerized).
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        DECLARATIVE (NixOS)                                  │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │ • K3s cluster setup          • Networking (proxy, firewall, VLAN)     │  │
+│  │ • Storage (/mnt/agents PV)   • Secrets (sops-nix / agenix)            │  │
+│  │ • Monitoring (Prometheus)    • DNS / Tailscale                        │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                    │                                        │
+│                                    ▼                                        │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │                     K3s / Kubernetes API                              │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                    │                                        │
+└────────────────────────────────────┼────────────────────────────────────────┘
+                                     │
+┌────────────────────────────────────┼────────────────────────────────────────┐
+│                        PORTABLE (OCI / K8s)                                 │
+│                                    ▼                                        │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │                    Agent OCI Image (multi-arch)                       │  │
+│  │  • opencode binary           • sandbox-runtime                        │  │
+│  │  • Minimal shell (dash)      • Agent card processor                   │  │
+│  │  • git, curl, certs          • Entrypoint script                      │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                    │                                        │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │                    Kubernetes Manifests (GitOps)                      │  │
+│  │  • Namespace + RBAC          • NetworkPolicy (proxy-only egress)      │  │
+│  │  • Deployment/StatefulSet    • PVC for workspace                      │  │
+│  │  • ConfigMap (agent cards)   • Secrets (API keys)                     │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  Runs on: NixOS K3s │ AWS EKS │ GCP GKE │ Azure AKS │ Any K8s              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### What Lives Where
+
+| Component | NixOS (Declarative) | K8s/OCI (Portable) | Why |
+|-----------|--------------------|--------------------|-----|
+| K3s cluster | ✅ | - | Host-specific |
+| Proxy (squid) | ✅ or K8s | ✅ | Can be either |
+| Storage provisioner | ✅ | - | Host storage |
+| Agent image | - | ✅ | Portable |
+| Agent card schema | - | ✅ | App config |
+| NetworkPolicy | - | ✅ | K8s native |
+| Secrets backend | ✅ (sops/agenix) | ✅ (external-secrets) | Both work |
+| Monitoring | ✅ or K8s | ✅ | Can be either |
+
+### Benefits
+
+1. **Portability**: Same agent image runs on any K8s cluster
+2. **GitOps**: K8s manifests in Git, deploy with ArgoCD/Flux
+3. **Scaling**: HPA/KEDA for auto-scaling agents
+4. **Multi-cloud**: Failover between clusters
+5. **NixOS advantages**: Declarative infra, reproducible hosts
+
+---
 
 ## Built-in Sandboxing Status
 
@@ -258,6 +325,424 @@ Benefits:
 - Domain allowlist via proxy
 - Maintained by Anthropic
 - NixOS-native with systemd templates
+
+---
+
+## Portable OCI Image (OS-Agnostic)
+
+Build the agent as an OCI image using Nix - runs on any K8s cluster.
+
+### OCI Image with Nix (nix2container)
+
+```nix
+# flakes/opencode-agent-image/flake.nix
+{
+  description = "Portable OpenCode Agent OCI Image";
+
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nix2container.url = "github:nlewo/nix2container";
+    nix-ai-tools.url = "github:your-org/nix-ai-tools";  # Or your source
+  };
+
+  outputs = { self, nixpkgs, nix2container, nix-ai-tools, ... }:
+    let
+      systems = [ "x86_64-linux" "aarch64-linux" ];
+      forAllSystems = nixpkgs.lib.genAttrs systems;
+    in {
+      packages = forAllSystems (system:
+        let
+          pkgs = import nixpkgs { inherit system; };
+          n2c = nix2container.packages.${system}.nix2container;
+
+          # OpenCode binary
+          opencode = nix-ai-tools.packages.${system}.opencode;
+
+          # Entrypoint that processes agent card
+          entrypoint = pkgs.writeShellScriptBin "entrypoint" ''
+            set -euo pipefail
+
+            # Agent card from ConfigMap mount or env
+            CARD_FILE="''${AGENT_CARD_FILE:-/etc/agent/card.json}"
+
+            if [[ -f "$CARD_FILE" ]]; then
+              export AGENT_ID=$(${pkgs.jq}/bin/jq -r '.agent_id // "unknown"' "$CARD_FILE")
+
+              # API key from file (K8s secret mount)
+              API_KEY_FILE=$(${pkgs.jq}/bin/jq -r '.api_key_file // ""' "$CARD_FILE")
+              if [[ -n "$API_KEY_FILE" && -f "$API_KEY_FILE" ]]; then
+                export ANTHROPIC_API_KEY=$(cat "$API_KEY_FILE")
+              fi
+            fi
+
+            echo "[agent] Starting: ''${AGENT_ID:-unnamed}"
+            echo "[agent] Workspace: $PWD"
+
+            exec ${opencode}/bin/opencode "$@"
+          '';
+
+          # Minimal agent image
+          agentImage = n2c.buildImage {
+            name = "opencode-agent";
+            tag = "v${opencode.version}";
+
+            # Multi-arch support
+            maxLayers = 50;
+
+            copyToRoot = pkgs.buildEnv {
+              name = "agent-root";
+              paths = [
+                # Minimal shell
+                pkgs.dash
+                pkgs.coreutils
+
+                # Required tools
+                pkgs.git
+                pkgs.curl
+                pkgs.cacert
+                pkgs.jq
+
+                # The agent
+                opencode
+                entrypoint
+              ];
+              pathsToLink = [ "/bin" "/etc" "/lib" ];
+            };
+
+            config = {
+              Entrypoint = [ "${entrypoint}/bin/entrypoint" ];
+              WorkingDir = "/workspace";
+              User = "65532:65532";  # nonroot
+
+              Env = [
+                "HOME=/workspace"
+                "SSL_CERT_FILE=/etc/ssl/certs/ca-bundle.crt"
+                "PATH=/bin"
+              ];
+
+              Labels = {
+                "org.opencontainers.image.source" = "https://github.com/your-org/nix-config";
+                "org.opencontainers.image.description" = "Sandboxed OpenCode Agent";
+                "org.opencontainers.image.licenses" = "Apache-2.0";
+              };
+            };
+          };
+
+        in {
+          default = agentImage;
+          opencode-agent = agentImage;
+
+          # Push helper
+          push = pkgs.writeShellScriptBin "push-image" ''
+            ${n2c}/bin/skopeo copy \
+              nix:${agentImage} \
+              docker://ghcr.io/your-org/opencode-agent:v${opencode.version}
+          '';
+        }
+      );
+    };
+}
+```
+
+### Build & Push
+
+```bash
+# Build image (outputs to Nix store)
+nix build .#opencode-agent
+
+# Load into local Docker/Podman
+nix run .#opencode-agent.copyToDockerDaemon
+
+# Push to registry
+nix run .#push
+# Or manually:
+skopeo copy nix:./result docker://ghcr.io/your-org/opencode-agent:latest
+```
+
+---
+
+## Portable K8s Manifests (GitOps)
+
+These manifests work on **any Kubernetes cluster** - not NixOS-specific.
+
+### Directory Structure
+
+```
+k8s/opencode-agent/
+├── kustomization.yaml      # Kustomize base
+├── namespace.yaml
+├── networkpolicy.yaml
+├── rbac.yaml
+├── configmap.yaml          # Agent cards
+├── deployment.yaml
+├── pvc.yaml
+└── overlays/
+    ├── dev/
+    │   └── kustomization.yaml
+    └── prod/
+        └── kustomization.yaml
+```
+
+### Base Manifests
+
+```yaml
+# k8s/opencode-agent/kustomization.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: opencode-agent
+
+resources:
+  - namespace.yaml
+  - rbac.yaml
+  - networkpolicy.yaml
+  - configmap.yaml
+  - pvc.yaml
+  - deployment.yaml
+
+images:
+  - name: opencode-agent
+    newName: ghcr.io/your-org/opencode-agent
+    newTag: latest
+```
+
+```yaml
+# k8s/opencode-agent/namespace.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: opencode-agent
+  labels:
+    # Pod Security Standards - restricted
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+```
+
+```yaml
+# k8s/opencode-agent/networkpolicy.yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: agent-egress-proxy-only
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: opencode-agent
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress: []  # No inbound traffic
+  egress:
+    # DNS
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+    # Proxy only (configure for your cluster)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              app: squid-proxy
+      ports:
+        - protocol: TCP
+          port: 3128
+```
+
+```yaml
+# k8s/opencode-agent/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: agent-cards
+data:
+  # Agent ID cards - one per agent type
+  default.json: |
+    {
+      "agent_id": "default",
+      "workspace": "/workspace",
+      "proxy": "http://squid-proxy.kube-system:3128",
+      "api_key_file": "/secrets/api-key",
+      "resource_limits": {
+        "memory_mb": 4096,
+        "max_processes": 50
+      },
+      "allowed_hosts": [
+        "api.anthropic.com",
+        "api.openai.com"
+      ]
+    }
+```
+
+```yaml
+# k8s/opencode-agent/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opencode-agent
+  labels:
+    app.kubernetes.io/name: opencode-agent
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: opencode-agent
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: opencode-agent
+    spec:
+      serviceAccountName: opencode-agent
+      automountServiceAccountToken: false
+
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+
+      containers:
+        - name: agent
+          image: opencode-agent  # Replaced by Kustomize
+          imagePullPolicy: IfNotPresent
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+
+          env:
+            - name: AGENT_CARD_FILE
+              value: /etc/agent/card.json
+            - name: HTTP_PROXY
+              value: http://squid-proxy.kube-system:3128
+            - name: HTTPS_PROXY
+              value: http://squid-proxy.kube-system:3128
+            - name: NO_PROXY
+              value: localhost,127.0.0.1,.cluster.local
+
+          volumeMounts:
+            - name: workspace
+              mountPath: /workspace
+            - name: agent-card
+              mountPath: /etc/agent
+              readOnly: true
+            - name: api-secret
+              mountPath: /secrets
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "4Gi"
+              cpu: "2"
+
+      volumes:
+        - name: workspace
+          persistentVolumeClaim:
+            claimName: agent-workspace
+        - name: agent-card
+          configMap:
+            name: agent-cards
+            items:
+              - key: default.json
+                path: card.json
+        - name: api-secret
+          secret:
+            secretName: agent-api-keys
+        - name: tmp
+          emptyDir:
+            sizeLimit: 1Gi
+```
+
+### NixOS: Declarative K8s Manifest Deployment
+
+```nix
+# modules/opencode-k8s/default.nix
+{ config, lib, pkgs, ... }:
+
+let
+  cfg = config.services.opencode-k8s;
+
+  # Embed manifests from Git
+  k8sManifests = pkgs.fetchFromGitHub {
+    owner = "your-org";
+    repo = "opencode-k8s-manifests";
+    rev = cfg.manifestsVersion;
+    hash = "sha256-xxx";
+  };
+
+in {
+  options.services.opencode-k8s = {
+    enable = lib.mkEnableOption "OpenCode agents on K3s";
+
+    manifestsVersion = lib.mkOption {
+      type = lib.types.str;
+      default = "v1.0.0";
+      description = "Git tag/commit of k8s manifests";
+    };
+
+    replicas = lib.mkOption {
+      type = lib.types.int;
+      default = 2;
+    };
+  };
+
+  config = lib.mkIf cfg.enable {
+    assertions = [{
+      assertion = config.services.k3s.enable;
+      message = "K3s must be enabled";
+    }];
+
+    # Auto-deploy manifests via K3s
+    environment.etc."rancher/k3s/server/manifests/opencode-agent.yaml".source =
+      pkgs.runCommand "opencode-kustomize" {
+        nativeBuildInputs = [ pkgs.kustomize ];
+      } ''
+        kustomize build ${k8sManifests}/k8s/opencode-agent \
+          | sed 's/replicas: 2/replicas: ${toString cfg.replicas}/' \
+          > $out
+      '';
+  };
+}
+```
+
+### Deploy Anywhere
+
+```bash
+# On NixOS K3s (auto-deployed)
+services.opencode-k8s.enable = true;
+
+# On any K8s cluster
+kubectl apply -k k8s/opencode-agent/
+
+# With ArgoCD
+argocd app create opencode-agent \
+  --repo https://github.com/your-org/k8s-manifests \
+  --path k8s/opencode-agent \
+  --dest-server https://kubernetes.default.svc
+
+# With Flux
+flux create kustomization opencode-agent \
+  --source=GitRepository/infra \
+  --path="./k8s/opencode-agent"
+```
+
+---
 
 ## Architecture
 
