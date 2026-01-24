@@ -55,7 +55,7 @@ in
 
     userId = lib.mkOption {
       type = lib.types.str;
-      default = cfg.userId;
+      default = "default";
       description = "Default user ID for memory operations";
     };
 
@@ -178,9 +178,6 @@ in
           # LLM configuration
           MEM0_LLM_PROVIDER = svcCfg.llm.provider;
           MEM0_LLM_MODEL = svcCfg.llm.model;
-        } // lib.optionalAttrs (svcCfg.embedder.provider == "voyageai") {
-          # VoyageAI uses VOYAGE_API_KEY
-          VOYAGE_API_KEY_FILE = lib.mkIf (svcCfg.embedder.apiKeyFile != null) svcCfg.embedder.apiKeyFile;
         };
 
         serviceConfig = {
