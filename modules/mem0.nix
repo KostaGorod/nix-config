@@ -70,6 +70,48 @@ in
       default = false;
       description = "Open firewall port for Mem0 service";
     };
+
+    # Embedder configuration
+    embedder = {
+      provider = lib.mkOption {
+        type = lib.types.enum [ "openai" "voyageai" "ollama" ];
+        default = "openai";
+        description = "Embedding provider (openai, voyageai, ollama)";
+      };
+
+      model = lib.mkOption {
+        type = lib.types.str;
+        default = "text-embedding-3-small";
+        description = "Embedding model name";
+      };
+
+      apiKeyFile = lib.mkOption {
+        type = lib.types.nullOr lib.types.path;
+        default = null;
+        description = "Path to file containing the embedder API key";
+      };
+    };
+
+    # LLM configuration
+    llm = {
+      provider = lib.mkOption {
+        type = lib.types.enum [ "openai" "anthropic" "ollama" ];
+        default = "openai";
+        description = "LLM provider for memory extraction";
+      };
+
+      model = lib.mkOption {
+        type = lib.types.str;
+        default = "gpt-4.1-nano-2025-04-14";
+        description = "LLM model name";
+      };
+
+      apiKeyFile = lib.mkOption {
+        type = lib.types.nullOr lib.types.path;
+        default = null;
+        description = "Path to file containing the LLM API key";
+      };
+    };
   };
 
   config = lib.mkMerge [
@@ -128,13 +170,29 @@ in
           MEM0_DATA_DIR = svcCfg.dataDir;
           MEM0_DEFAULT_USER_ID = svcCfg.userId;
           HOME = svcCfg.dataDir;
+
+          # Embedder configuration
+          MEM0_EMBEDDER_PROVIDER = svcCfg.embedder.provider;
+          MEM0_EMBEDDER_MODEL = svcCfg.embedder.model;
+
+          # LLM configuration
+          MEM0_LLM_PROVIDER = svcCfg.llm.provider;
+          MEM0_LLM_MODEL = svcCfg.llm.model;
+        } // lib.optionalAttrs (svcCfg.embedder.provider == "voyageai") {
+          # VoyageAI uses VOYAGE_API_KEY
+          VOYAGE_API_KEY_FILE = lib.mkIf (svcCfg.embedder.apiKeyFile != null) svcCfg.embedder.apiKeyFile;
         };
 
         serviceConfig = {
           Type = "simple";
-          ExecStart = "${pkgs-unstable.uv}/bin/uvx mem0-mcp --transport sse --host ${svcCfg.host} --port ${toString svcCfg.port}";
           Restart = "on-failure";
           RestartSec = "5s";
+
+          # Load API keys from files if specified
+          LoadCredential = lib.optional (svcCfg.embedder.apiKeyFile != null)
+            "embedder-api-key:${svcCfg.embedder.apiKeyFile}"
+          ++ lib.optional (svcCfg.llm.apiKeyFile != null)
+            "llm-api-key:${svcCfg.llm.apiKeyFile}";
 
           # Hardening
           NoNewPrivileges = true;
@@ -143,6 +201,24 @@ in
           ReadWritePaths = [ svcCfg.dataDir ];
           PrivateTmp = true;
         };
+
+        # Load API keys from credential files into environment
+        script = let
+          embedderKeyEnv = if svcCfg.embedder.provider == "voyageai" then "VOYAGE_API_KEY"
+                          else if svcCfg.embedder.provider == "openai" then "OPENAI_API_KEY"
+                          else "";
+          llmKeyEnv = if svcCfg.llm.provider == "openai" then "OPENAI_API_KEY"
+                     else if svcCfg.llm.provider == "anthropic" then "ANTHROPIC_API_KEY"
+                     else "";
+        in ''
+          ${lib.optionalString (svcCfg.embedder.apiKeyFile != null && embedderKeyEnv != "") ''
+            export ${embedderKeyEnv}="$(cat $CREDENTIALS_DIRECTORY/embedder-api-key)"
+          ''}
+          ${lib.optionalString (svcCfg.llm.apiKeyFile != null && llmKeyEnv != "") ''
+            export ${llmKeyEnv}="$(cat $CREDENTIALS_DIRECTORY/llm-api-key)"
+          ''}
+          exec ${pkgs-unstable.uv}/bin/uvx mem0-mcp --transport sse --host ${svcCfg.host} --port ${toString svcCfg.port}
+        '';
       };
 
       # Firewall

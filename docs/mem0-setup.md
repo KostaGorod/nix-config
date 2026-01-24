@@ -18,13 +18,46 @@ programs.mem0 = {
   userId = "kosta";
 };
 
-# Systemd service (SSE transport on port 8050)
+# Systemd service with VoyageAI embeddings
 services.mem0 = {
   enable = true;
   port = 8050;
   userId = "kosta";
+
+  # VoyageAI embeddings (voyage-4-lite)
+  embedder = {
+    provider = "voyageai";
+    model = "voyage-4-lite";
+    apiKeyFile = "/run/secrets/voyage-api-key";
+  };
+
+  # LLM for memory extraction
+  llm = {
+    provider = "anthropic";
+    model = "claude-sonnet-4-20250514";
+    apiKeyFile = "/run/secrets/anthropic-api-key";
+  };
 };
 ```
+
+## Setup API Keys
+
+Create the secret files (root-only readable):
+
+```bash
+# VoyageAI API key
+sudo mkdir -p /run/secrets
+echo "pa-YOUR_VOYAGE_API_KEY" | sudo tee /run/secrets/voyage-api-key
+sudo chmod 600 /run/secrets/voyage-api-key
+
+# Anthropic API key
+echo "sk-ant-YOUR_ANTHROPIC_KEY" | sudo tee /run/secrets/anthropic-api-key
+sudo chmod 600 /run/secrets/anthropic-api-key
+```
+
+Get your keys from:
+- VoyageAI: https://dash.voyageai.com/
+- Anthropic: https://console.anthropic.com/
 
 ## Verify Service
 
@@ -35,11 +68,11 @@ systemctl status mem0
 # View logs
 journalctl -u mem0 -f
 
-# Test with curl
-curl http://localhost:8050/sse
+# Test SSE endpoint
+curl -N http://localhost:8050/sse
 
-# Test health/info endpoint
-curl http://localhost:8050/
+# Check port is listening
+ss -tlnp | grep 8050
 ```
 
 ## OpenCode MCP Integration (SSE)
@@ -51,16 +84,19 @@ Add to `~/.config/opencode/opencode.json`:
   "mcp": {
     "mem0": {
       "transport": "sse",
-      "url": "http://localhost:8050/sse",
-      "env": {
-        "MEM0_DEFAULT_USER_ID": "kosta"
-      }
+      "url": "http://localhost:8050/sse"
     }
   }
 }
 ```
 
 ## Claude Code MCP Integration (SSE)
+
+```bash
+claude mcp add mem0 --transport sse --url http://localhost:8050/sse
+```
+
+Or manually add to settings:
 
 ```json
 {
@@ -73,60 +109,45 @@ Add to `~/.config/opencode/opencode.json`:
 }
 ```
 
-## Alternative: Stdio Mode (on-demand)
+## Embedder Options
 
-If you prefer stdio mode (no persistent service), use the wrapper script:
+| Provider | Model | Notes |
+|----------|-------|-------|
+| `voyageai` | `voyage-4-lite` | Fast, cost-effective (recommended) |
+| `voyageai` | `voyage-4` | Higher quality |
+| `voyageai` | `voyage-code-3` | Optimized for code |
+| `openai` | `text-embedding-3-small` | OpenAI default |
+| `ollama` | `nomic-embed-text` | Fully local |
 
-```json
-{
-  "mcp": {
-    "mem0": {
-      "command": "uvx",
-      "args": ["mem0-mcp"],
-      "env": {
-        "MEM0_DEFAULT_USER_ID": "kosta"
-      }
-    }
-  }
-}
-```
+## LLM Options
 
-## Using Local Embeddings (Ollama)
-
-For fully local operation without OpenAI, create `~/.config/mem0/config.yaml`:
-
-```yaml
-embedder:
-  provider: ollama
-  config:
-    model: nomic-embed-text
-    ollama_base_url: http://localhost:11434
-
-llm:
-  provider: ollama
-  config:
-    model: llama3.2
-    ollama_base_url: http://localhost:11434
-
-vector_store:
-  provider: qdrant
-  config:
-    path: /var/lib/mem0/qdrant
-```
+| Provider | Model | Notes |
+|----------|-------|-------|
+| `anthropic` | `claude-sonnet-4-20250514` | Best for memory extraction |
+| `openai` | `gpt-4.1-nano-2025-04-14` | Default |
+| `ollama` | `llama3.2` | Fully local |
 
 ## Data Locations
 
 - **Service data**: `/var/lib/mem0/qdrant`
 - **User data**: `~/.local/share/mem0/qdrant`
 
-## Environment Variables
+## Test Memory Sharing
 
-- `MEM0_DEFAULT_USER_ID`: Default user ID (set to "kosta")
-- `MEM0_DATA_DIR`: Storage path
-- `OPENAI_API_KEY`: Required for embeddings (unless using Ollama)
+In Claude Code:
+```
+Store a memory that I prefer NixOS with flakes
+```
+
+In OpenCode:
+```
+What do you know about my OS preferences?
+```
+
+Both agents share the same memory store via the service.
 
 ## Resources
 
 - [Mem0 Self-Hosted Docs](https://docs.mem0.ai/open-source/python-quickstart)
+- [VoyageAI Models](https://docs.voyageai.com/docs/embeddings)
 - [Mem0 MCP Integration](https://docs.mem0.ai/platform/features/mcp-integration)
-- [OpenCode MCP Servers](https://opencode.ai/docs/mcp-servers/)

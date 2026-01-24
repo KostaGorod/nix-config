@@ -277,6 +277,20 @@ in
     userId = "kosta";
     # host = "0.0.0.0";  # uncomment to expose to network
     # openFirewall = true;
+
+    # VoyageAI embeddings (voyage-4-lite)
+    embedder = {
+      provider = "voyageai";
+      model = "voyage-4-lite";
+      apiKeyFile = "/run/secrets/voyage-api-key";  # Create this file with your API key
+    };
+
+    # LLM for memory extraction (uses Anthropic)
+    llm = {
+      provider = "anthropic";
+      model = "claude-sonnet-4-20250514";
+      apiKeyFile = "/run/secrets/anthropic-api-key";  # Create this file with your API key
+    };
   };
 
   # Enable Abacus.AI DeepAgent desktop client and CLI
