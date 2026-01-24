@@ -111,6 +111,10 @@ in
     ## browsers
     inputs.zen-browser.packages."x86_64-linux".default # beta
     # inputs.zen-browser.packages."${system}".default # beta
+
+    # Fingerprint + SSH key management
+    gcr  # Provides fingerprint-aware passphrase prompt for gnome-keyring
+    seahorse  # GUI for managing keyring (view/delete stored SSH passphrases)
   ];
 
   programs.vscode = {
@@ -247,10 +251,16 @@ in
     enableBashIntegration = true;
   };
 
-  # SSH agent for key management (needed by Abacus, VS Code, etc.)
-  services.ssh-agent = {
+  # GNOME Keyring for SSH key passphrase management with fingerprint support
+  # gnome-keyring acts as SSH agent and integrates with PAM for fingerprint unlock
+  services.gnome-keyring = {
     enable = true;
-    enableBashIntegration = true;
+    components = [ "secrets" "ssh" ];  # secrets for credential storage, ssh for SSH agent
+  };
+
+  # Ensure SSH_AUTH_SOCK points to gnome-keyring's SSH agent
+  home.sessionVariables = {
+    SSH_AUTH_SOCK = "$XDG_RUNTIME_DIR/keyring/ssh";
   };
 
   # Home-manager's zed produces read only `settings.json`, which limits features as changing models or settings at runtime.

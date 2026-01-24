@@ -175,6 +175,26 @@ security.rtkit.enable = true; # realtime scheduling priority to user processes o
 security.auditd.enable = true;
 security.audit.enable = true;
 
+# Fingerprint reader support (ThinkPad X1 Gen 9 built-in)
+services.fprintd.enable = true;
+
+# PAM configuration for fingerprint authentication
+# This allows using fingerprint for sudo, polkit, and unlocking SSH keys via gnome-keyring
+security.pam.services = {
+  # Allow fingerprint for sudo
+  sudo.fprintAuth = true;
+  # Allow fingerprint for polkit (GUI privilege escalation)
+  polkit-1.fprintAuth = true;
+  # Allow fingerprint for login
+  login.fprintAuth = true;
+  # Enable gnome-keyring PAM module for SSH key passphrase via fingerprint
+  login.enableGnomeKeyring = true;
+};
+
+# Enable GNOME Keyring for SSH key passphrase management
+# This allows fingerprint to unlock the keyring which stores SSH key passphrases
+services.gnome.gnome-keyring.enable = true;
+
 services.locate = {
 enable = true;
 #localuser = null; # use root, idk why its called null here.
