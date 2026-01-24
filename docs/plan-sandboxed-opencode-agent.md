@@ -9,17 +9,83 @@ Deploy a heavily sandboxed AI coding agent (`opencode`) with:
 - **Dynamic runtime**: Spawn/destroy agents without nixos-rebuild
 - **K3s deployment**: For flexibility, redundancy, and orchestration
 
-## Deployment Options
+## Built-in Sandboxing Status
 
-| Option | Rebuild Required | Dynamic Spawn | Isolation Level | Complexity |
-|--------|-----------------|---------------|-----------------|------------|
-| **Bubblewrap (bwrap)** | No | Yes | High | Low |
-| **systemd-nspawn** | No | Yes | Very High | Medium |
-| **systemd templates** | No | Yes | High | Low |
-| **Podman rootless** | No | Yes | High | Medium |
-| **K3s Pods** | No | Yes | Very High | High |
+| Tool | Native Sandbox | Implementation | Notes |
+|------|----------------|----------------|-------|
+| **Claude Code** | ✅ Yes | Seatbelt (macOS), bubblewrap (Linux) | Full FS + network isolation, [open source runtime](https://github.com/anthropic-experimental/sandbox-runtime) |
+| **OpenCode** | ❌ No | N/A | [Requested feature](https://github.com/anomalyco/opencode/issues/2242), community uses Docker |
 
-**Recommended: Bubblewrap + systemd templates** for NixOS-native dynamic sandboxing.
+**Key insight**: Claude Code already uses bubblewrap on Linux. For OpenCode, external sandboxing is required.
+
+## NixOS Sandboxing Comparison
+
+| Option | Rebuild? | Dynamic? | FS Isolation | Net Isolation | NixOS Native | Notes |
+|--------|----------|----------|--------------|---------------|--------------|-------|
+| **buildFHSEnv** | Yes | No | Partial (chroot-like) | None | ✅ | Binary compat, not security sandbox |
+| **bubblewrap** | No | Yes | Full (namespaces) | Via proxy | ✅ (in pkgs) | What Claude Code uses; [actively maintained](https://github.com/containers/bubblewrap) |
+| **systemd-nspawn** | No | Yes | Full (container) | netns | ✅ | Heavier, full container |
+| **nixos-container** | Yes | No | Full (nspawn) | netns | ✅ | Declarative but static |
+| **Podman rootless** | No | Yes | Full (OCI) | netns | Partial | Needs OCI image |
+| **sandbox-runtime** | No | Yes | Full | Full | Via npm | Claude's open source package |
+
+### buildFHSEnv vs bubblewrap
+
+| Aspect | buildFHSEnv | bubblewrap |
+|--------|-------------|------------|
+| **Purpose** | Binary compatibility (FHS layout) | Security isolation |
+| **Namespaces** | None (just bind mounts) | User, mount, PID, net, IPC |
+| **FS isolation** | Sees host paths | Can hide entire FS |
+| **Network** | Full host access | Can isolate or restrict |
+| **Runtime spawn** | No (needs rebuild) | Yes (just exec) |
+| **Use case** | Run proprietary binaries | Sandbox untrusted code |
+
+**buildFHSEnv is NOT a security sandbox** - it's for running binaries that expect `/usr/lib`, `/lib64`, etc.
+
+### Bubblewrap Maintenance Status
+
+Bubblewrap is **actively maintained** under [containers/bubblewrap](https://github.com/containers/bubblewrap):
+- CVE-2024-42472 patched (symlink security fix)
+- New features: `--bind-fd`, `--overlay` support
+- Used by: Flatpak, GNOME, Claude Code, Firefox
+- Latest: v0.10.0 (2024)
+
+## Recommended Approach
+
+**For OpenCode**: Use bubblewrap + systemd templates (since OpenCode lacks native sandboxing)
+**For Claude Code**: Leverage its native sandbox, configure via `settings.json`
+
+| Agent | Recommended Sandbox |
+|-------|-------------------|
+| Claude Code | Native (`/sandbox` command) + proxy for network audit |
+| OpenCode | bubblewrap wrapper OR Claude's sandbox-runtime + systemd template |
+| Both | K3s pods with NetworkPolicy (for multi-agent orchestration) |
+
+### Option: Use Claude's sandbox-runtime for OpenCode
+
+Anthropic open-sourced their sandbox runtime. Can wrap any command:
+
+```bash
+# Install once
+npm install -g @anthropic-ai/sandbox-runtime
+
+# Sandbox any command (including opencode)
+npx @anthropic-ai/sandbox-runtime opencode
+
+# Or in NixOS module:
+sandboxedOpencode = pkgs.writeShellScriptBin "opencode-sandboxed" ''
+  export HTTP_PROXY="http://127.0.0.1:3128"
+  export HTTPS_PROXY="http://127.0.0.1:3128"
+  exec ${pkgs.nodePackages.npx}/bin/npx @anthropic-ai/sandbox-runtime \
+    ${opencode-pkg}/bin/opencode "$@"
+'';
+```
+
+Benefits:
+- Same battle-tested sandbox as Claude Code
+- FS + network isolation out of the box
+- Domain allowlist via proxy
+- Maintained by Anthropic
 
 ## Architecture
 
