@@ -65,7 +65,7 @@ in
     }
   ];
   networking.timeServers = [ "timeserver.iix.net.il" ];
-  networking.firewall.enable = false;
+  # firewall configured in configuration.nix
 
   # Virtualization
   virtualisation.docker.enable = true;
