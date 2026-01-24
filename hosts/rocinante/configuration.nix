@@ -263,8 +263,12 @@ in
   # Enable OpenCode AI coding agent
   programs.opencode.enable = true;
 
-  # Enable Mem0 AI memory layer for persistent agent memory
-  programs.mem0.enable = true;
+  # Enable Mem0 AI memory layer for persistent agent memory (self-hosted)
+  programs.mem0 = {
+    enable = true;
+    selfHosted = true;
+    userId = "kosta";
+  };
 
   # Enable Abacus.AI DeepAgent desktop client and CLI
   programs.abacusai.enable = true;

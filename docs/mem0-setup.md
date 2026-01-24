@@ -1,41 +1,32 @@
-# Mem0 Integration Setup
+# Mem0 Self-Hosted Setup
 
-Mem0 provides persistent memory capabilities for AI coding agents like OpenCode and Claude Code.
+Mem0 provides persistent memory capabilities for AI coding agents like OpenCode and Claude Code. This setup uses **self-hosted mode** with local Qdrant vector storage.
 
 ## Installation
 
-The `mem0` module is enabled in your NixOS configuration. After rebuilding:
+The `mem0` module is enabled in your NixOS configuration with self-hosted mode. After rebuilding:
 
 ```bash
 sudo nixos-rebuild switch --flake .#rocinante
 ```
 
+## Configuration
+
+Current settings in `configuration.nix`:
+
+```nix
+programs.mem0 = {
+  enable = true;
+  selfHosted = true;
+  userId = "kosta";
+};
+```
+
+Data is stored locally at `~/.local/share/mem0/qdrant`.
+
 ## OpenCode MCP Integration
 
-Add the following to your OpenCode configuration at `~/.config/opencode/opencode.json`:
-
-### Cloud Mode (Recommended for production)
-
-```json
-{
-  "mcp": {
-    "mem0": {
-      "command": "uvx",
-      "args": ["mem0-mcp"],
-      "env": {
-        "MEM0_API_KEY": "<your-api-key-from-app.mem0.ai>",
-        "MEM0_DEFAULT_USER_ID": "kosta"
-      }
-    }
-  }
-}
-```
-
-Get your API key from [app.mem0.ai](https://app.mem0.ai).
-
-### Local Mode (Self-hosted with Qdrant)
-
-For local-only memory storage without cloud:
+Add to `~/.config/opencode/opencode.json`:
 
 ```json
 {
@@ -51,11 +42,11 @@ For local-only memory storage without cloud:
 }
 ```
 
-In local mode, mem0 uses Qdrant with on-disk storage at `~/.local/share/mem0`.
+**Note:** Self-hosted mode requires `OPENAI_API_KEY` for embeddings. Set it in your environment or add to the `env` block above.
 
 ## Claude Code MCP Integration
 
-Add to your Claude Code MCP settings (`~/.config/claude-code/settings.json`):
+Add to your Claude Code MCP settings:
 
 ```json
 {
@@ -64,7 +55,6 @@ Add to your Claude Code MCP settings (`~/.config/claude-code/settings.json`):
       "command": "uvx",
       "args": ["mem0-mcp"],
       "env": {
-        "MEM0_API_KEY": "<your-api-key>",
         "MEM0_DEFAULT_USER_ID": "kosta"
       }
     }
@@ -72,19 +62,35 @@ Add to your Claude Code MCP settings (`~/.config/claude-code/settings.json`):
 }
 ```
 
-## Python Library Usage
+## Using Alternative Embedding Models
 
-For direct Python usage:
+For fully local operation without OpenAI, configure mem0 to use Ollama or other local models. Create `~/.config/mem0/config.yaml`:
 
-```bash
-# Install mem0ai via uv
-uv pip install mem0ai
+```yaml
+embedder:
+  provider: ollama
+  config:
+    model: nomic-embed-text
+    ollama_base_url: http://localhost:11434
 
-# Or use in a project
-uv add mem0ai
+llm:
+  provider: ollama
+  config:
+    model: llama3.2
+    ollama_base_url: http://localhost:11434
+
+vector_store:
+  provider: qdrant
+  config:
+    path: ~/.local/share/mem0/qdrant
 ```
 
-Example usage:
+## Python Library Usage
+
+```bash
+# Install mem0ai
+uv pip install mem0ai
+```
 
 ```python
 from mem0 import Memory
@@ -93,24 +99,23 @@ m = Memory()
 
 # Add memories
 messages = [
-    {"role": "user", "content": "I prefer using NixOS for all my systems."},
-    {"role": "assistant", "content": "Noted! I'll remember your preference for NixOS."}
+    {"role": "user", "content": "I prefer NixOS with flakes."},
+    {"role": "assistant", "content": "Noted! I'll remember your NixOS preference."}
 ]
 m.add(messages, user_id="kosta")
 
 # Search memories
-results = m.search("operating system preferences", user_id="kosta")
-print(results)
+results = m.search("operating system", user_id="kosta")
 ```
 
 ## Environment Variables
 
-- `MEM0_API_KEY`: API key for mem0 cloud service (optional for local mode)
-- `MEM0_DEFAULT_USER_ID`: Default user ID for memory operations
-- `MEM0_DATA_DIR`: Local data directory (default: `~/.local/share/mem0`)
+- `MEM0_DEFAULT_USER_ID`: Default user ID (set to "kosta")
+- `MEM0_DATA_DIR`: Local storage path (`~/.local/share/mem0`)
+- `OPENAI_API_KEY`: Required for embeddings (unless using Ollama)
 
 ## Resources
 
-- [Mem0 Documentation](https://docs.mem0.ai/)
+- [Mem0 Self-Hosted Docs](https://docs.mem0.ai/open-source/python-quickstart)
 - [Mem0 MCP Integration](https://docs.mem0.ai/platform/features/mcp-integration)
 - [OpenCode MCP Servers](https://opencode.ai/docs/mcp-servers/)
