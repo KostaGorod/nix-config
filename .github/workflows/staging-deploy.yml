@@ -1,5 +1,9 @@
 # GitOps Staging Deployment for gpu-node-1
 # Triggered on push to 'stage' branch - self-hosted runner applies config locally
+#
+# SECURITY: This workflow runs on a self-hosted runner with sudo access.
+# Only direct pushes to 'stage' are allowed - NO pull_request triggers.
+# Protected by GitHub Environment requiring manual approval.
 
 name: Stage Deploy gpu-node-1
 
@@ -20,13 +24,21 @@ concurrency:
   group: staging-deploy
   cancel-in-progress: false
 
+# Restrict permissions to minimum required
+permissions:
+  contents: read
+
 jobs:
   # =============================================================================
-  # VALIDATE - Run on any available runner
+  # VALIDATE - Run on GitHub-hosted runner (safe for public repos)
   # =============================================================================
   validate:
     name: Validate Flake
     runs-on: ubuntu-latest
+
+    # Security: only run for this repo (not forks)
+    if: github.repository == 'KostaGorod/nix-config'
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -54,7 +66,35 @@ jobs:
     needs: validate
     runs-on: [self-hosted, gpu-node-1]
 
+    # SECURITY: Use GitHub Environment with protection rules
+    # Configure at: Settings > Environments > staging-gpu-node-1
+    # - Required reviewers: add yourself
+    # - Deployment branches: only 'stage'
+    environment: staging-gpu-node-1
+
+    # Security: triple-check we're in the right context
+    if: |
+      github.repository == 'KostaGorod/nix-config' &&
+      github.ref == 'refs/heads/stage' &&
+      github.event_name != 'pull_request' &&
+      github.event_name != 'pull_request_target'
+
     steps:
+      - name: Security check
+        run: |
+          echo "=== Security Verification ==="
+          echo "Repository: ${{ github.repository }}"
+          echo "Event: ${{ github.event_name }}"
+          echo "Ref: ${{ github.ref }}"
+          echo "Actor: ${{ github.actor }}"
+          echo "=============================="
+
+          # Abort if somehow triggered from PR
+          if [[ "${{ github.event_name }}" == "pull_request"* ]]; then
+            echo "ERROR: Self-hosted runner must not run on PRs"
+            exit 1
+          fi
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -108,7 +148,7 @@ jobs:
     name: Notify
     needs: [validate, deploy]
     runs-on: ubuntu-latest
-    if: always()
+    if: always() && github.repository == 'KostaGorod/nix-config'
 
     steps:
       - name: Deployment status
