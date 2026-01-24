@@ -1349,6 +1349,384 @@ captain-agent terminate task-123
 | Network | Workers can only reach proxy, captain controls proxy allowlist |
 | Resource exhaustion | Captain enforces limits per task, auto-terminates on TTL |
 
+---
+
+## OpenCode as Captain (Interactive Mode)
+
+Use OpenCode/Claude Code as the captain in **real-time interactive mode** (not automation). The captain uses **MCP tools** to spawn and communicate with A2A workers.
+
+### Why MCP + A2A?
+
+| Protocol | Purpose | Direction |
+|----------|---------|-----------|
+| **MCP** | Human ↔ Captain tools | Captain calls tools to manage workers |
+| **A2A** | Captain ↔ Workers | Workers expose A2A endpoints |
+
+```
+Human ←──(chat)──→ OpenCode ←──(MCP)──→ A2A Bridge ←──(A2A)──→ Workers
+```
+
+### MCP Server: A2A Worker Manager
+
+```python
+# mcp_servers/a2a_workers/server.py
+"""
+MCP Server that gives OpenCode/Claude Code the ability to:
+- Spawn sandboxed workers
+- Send tasks via A2A
+- Stream real-time results back
+- Terminate workers
+"""
+
+from mcp.server import Server
+from mcp.types import Tool, TextContent
+import httpx
+import asyncio
+import subprocess
+import json
+import os
+
+app = Server("a2a-workers")
+
+# Track active workers
+workers: dict[str, dict] = {}
+
+
+@app.tool()
+async def spawn_worker(
+    task_id: str,
+    workspace: str = "/mnt/agents",
+    config: dict = None
+) -> str:
+    """
+    Spawn a new sandboxed worker agent.
+
+    Args:
+        task_id: Unique identifier for this worker
+        workspace: Base directory for worker's files
+        config: Optional worker configuration
+
+    Returns:
+        Worker URL for A2A communication
+    """
+    worker_workspace = f"{workspace}/{task_id}"
+    os.makedirs(worker_workspace, exist_ok=True)
+
+    # Create agent card
+    card = {
+        "agent_id": task_id,
+        "workspace": worker_workspace,
+        "proxy": config.get("proxy", "http://127.0.0.1:3128") if config else "http://127.0.0.1:3128",
+        "a2a_port": 8080 + len(workers)  # Unique port per worker
+    }
+
+    card_path = f"/tmp/agent-cards/{task_id}.json"
+    os.makedirs(os.path.dirname(card_path), exist_ok=True)
+    with open(card_path, "w") as f:
+        json.dump(card, f)
+
+    # Spawn via systemd (or K8s)
+    port = card["a2a_port"]
+
+    # Option 1: Systemd
+    proc = subprocess.Popen([
+        "systemctl", "start", f"sandboxed-agent@{task_id}"
+    ])
+
+    # Option 2: Direct spawn (for development)
+    # proc = subprocess.Popen([
+    #     "agent-spawn", card_path
+    # ])
+
+    worker_url = f"http://127.0.0.1:{port}"
+    workers[task_id] = {
+        "url": worker_url,
+        "card": card,
+        "process": proc
+    }
+
+    # Wait for worker to be ready
+    for _ in range(30):
+        try:
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(f"{worker_url}/.well-known/agent.json", timeout=1)
+                if resp.status_code == 200:
+                    return f"Worker spawned: {worker_url}\nCapabilities: {resp.json().get('skills', [])}"
+        except:
+            await asyncio.sleep(1)
+
+    return f"Worker spawned but not yet responding: {worker_url}"
+
+
+@app.tool()
+async def send_task(
+    task_id: str,
+    message: str,
+    stream: bool = True
+) -> str:
+    """
+    Send a task to a worker and get the result.
+
+    Args:
+        task_id: Worker to send task to
+        message: The task description/prompt
+        stream: Whether to stream progress (default: True)
+
+    Returns:
+        Task result and any generated artifacts
+    """
+    if task_id not in workers:
+        return f"Error: Worker {task_id} not found. Spawn it first."
+
+    worker_url = workers[task_id]["url"]
+
+    payload = {
+        "id": f"task-{task_id}-{int(asyncio.get_event_loop().time())}",
+        "message": {
+            "role": "user",
+            "parts": [{"text": message}]
+        }
+    }
+
+    results = []
+
+    async with httpx.AsyncClient() as client:
+        async with client.stream(
+            "POST",
+            f"{worker_url}/tasks/send",
+            json=payload,
+            headers={"Accept": "text/event-stream"},
+            timeout=None
+        ) as response:
+            async for line in response.aiter_lines():
+                if line.startswith("data: "):
+                    data = json.loads(line[6:])
+
+                    # Collect messages for final result
+                    if "parts" in data:
+                        for part in data["parts"]:
+                            if "text" in part:
+                                results.append(part["text"])
+
+                    # Check for completion
+                    if data.get("status") == "completed":
+                        artifacts = data.get("artifacts", [])
+                        return f"Task completed!\n\nOutput:\n{''.join(results)}\n\nArtifacts: {artifacts}"
+
+                    elif data.get("status") == "failed":
+                        return f"Task failed: {data.get('error', 'Unknown error')}"
+
+    return f"Task sent. Results:\n{''.join(results)}"
+
+
+@app.tool()
+async def get_worker_status(task_id: str) -> str:
+    """
+    Get the status of a worker.
+
+    Args:
+        task_id: Worker ID to check
+
+    Returns:
+        Worker status and recent activity
+    """
+    if task_id not in workers:
+        return f"Worker {task_id} not found"
+
+    worker_url = workers[task_id]["url"]
+
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(f"{worker_url}/.well-known/agent.json", timeout=5)
+            card = resp.json()
+            return f"Worker {task_id} is running\nURL: {worker_url}\nSkills: {card.get('skills', [])}"
+    except Exception as e:
+        return f"Worker {task_id} not responding: {e}"
+
+
+@app.tool()
+async def terminate_worker(task_id: str) -> str:
+    """
+    Terminate a worker and clean up resources.
+
+    Args:
+        task_id: Worker to terminate
+
+    Returns:
+        Confirmation message
+    """
+    if task_id not in workers:
+        return f"Worker {task_id} not found"
+
+    # Stop via systemd
+    subprocess.run(["systemctl", "stop", f"sandboxed-agent@{task_id}"])
+
+    del workers[task_id]
+    return f"Worker {task_id} terminated"
+
+
+@app.tool()
+async def list_workers() -> str:
+    """
+    List all active workers.
+
+    Returns:
+        List of worker IDs and their status
+    """
+    if not workers:
+        return "No active workers"
+
+    lines = ["Active workers:"]
+    for task_id, info in workers.items():
+        lines.append(f"  - {task_id}: {info['url']}")
+
+    return "\n".join(lines)
+
+
+if __name__ == "__main__":
+    import mcp.server.stdio
+    mcp.server.stdio.run(app)
+```
+
+### OpenCode/Claude Code Configuration
+
+```json
+// ~/.config/opencode/config.json (or Claude Code settings)
+{
+  "mcpServers": {
+    "a2a-workers": {
+      "command": "python",
+      "args": ["/path/to/mcp_servers/a2a_workers/server.py"],
+      "env": {
+        "WORKERS_DIR": "/mnt/agents",
+        "DEFAULT_PROXY": "http://127.0.0.1:3128"
+      }
+    }
+  }
+}
+```
+
+### Interactive Session Example
+
+```
+You: I need to build a REST API for user management with tests.
+
+OpenCode: I'll spawn two workers - one for the API and one for tests.
+
+[Calls spawn_worker(task_id="api-builder", workspace="/mnt/agents")]
+→ Worker spawned: http://127.0.0.1:8080
+
+[Calls spawn_worker(task_id="test-writer", workspace="/mnt/agents")]
+→ Worker spawned: http://127.0.0.1:8081
+
+[Calls send_task(task_id="api-builder", message="Build a REST API for user management with FastAPI. Include CRUD endpoints for users.")]
+→ Streaming...
+  📝 Creating project structure...
+  📝 Writing models.py...
+  📝 Writing routes.py...
+  📝 Writing main.py...
+→ Task completed! Artifacts: [models.py, routes.py, main.py]
+
+[Calls send_task(task_id="test-writer", message="Write pytest tests for the API in /mnt/agents/api-builder")]
+→ Streaming...
+  📝 Reading API code...
+  📝 Writing test_users.py...
+→ Task completed! Artifacts: [test_users.py]
+
+[Calls terminate_worker(task_id="api-builder")]
+[Calls terminate_worker(task_id="test-writer")]
+→ Workers terminated
+
+OpenCode: Done! The API is in /mnt/agents/api-builder with tests in /mnt/agents/test-writer.
+```
+
+### Real-time Streaming to Human
+
+The MCP tool returns intermediate results, so you see progress:
+
+```
+You: Build a complex microservice
+
+OpenCode: [spawn_worker...]
+         [send_task: "Build microservice..."]
+
+         Worker progress:
+         📝 Analyzing requirements...
+         📝 Creating database schema...
+         📝 Implementing service layer...
+         📝 Adding API endpoints...
+         📝 Writing Dockerfile...
+
+         ✅ Complete! Files created:
+         - src/models.py
+         - src/services.py
+         - src/api.py
+         - Dockerfile
+         - docker-compose.yml
+```
+
+### Comparison: Automation vs Interactive
+
+| Mode | Captain | Trigger | Feedback |
+|------|---------|---------|----------|
+| **Interactive** | OpenCode CLI | You chat directly | Real-time in terminal |
+| **Automation** | Script/API | GitHub issue, webhook | Async (PR, comment) |
+
+### Benefits of Interactive Captain
+
+1. **Real-time feedback** - See worker output as it happens
+2. **Dynamic decisions** - Change approach mid-task based on results
+3. **Multi-worker coordination** - Spawn workers for parallel subtasks
+4. **Human-in-the-loop** - Review outputs before next step
+5. **No infrastructure** - Just run OpenCode with MCP server
+
+### NixOS Module for MCP Server
+
+```nix
+# modules/a2a-mcp-server/default.nix
+{ config, lib, pkgs, ... }:
+
+let
+  cfg = config.services.a2a-mcp-server;
+
+  mcpServer = pkgs.python3Packages.buildPythonApplication {
+    pname = "a2a-workers-mcp";
+    version = "0.1.0";
+    src = ./src;
+
+    propagatedBuildInputs = with pkgs.python3Packages; [
+      mcp
+      httpx
+      asyncio
+    ];
+  };
+
+in {
+  options.services.a2a-mcp-server = {
+    enable = lib.mkEnableOption "A2A Workers MCP Server";
+
+    workersDir = lib.mkOption {
+      type = lib.types.str;
+      default = "/mnt/agents";
+    };
+  };
+
+  config = lib.mkIf cfg.enable {
+    environment.systemPackages = [ mcpServer ];
+
+    # Create MCP config for opencode
+    environment.etc."opencode/mcp-servers.json".text = builtins.toJSON {
+      a2a-workers = {
+        command = "${mcpServer}/bin/a2a-workers-mcp";
+        env = {
+          WORKERS_DIR = cfg.workersDir;
+        };
+      };
+    };
+  };
+}
+```
+
 ### References
 
 - [A2A Protocol Spec](https://a2a-protocol.org/latest/)
