@@ -6,7 +6,20 @@ Deploy a heavily sandboxed AI coding agent (`opencode`) with:
 - **Filesystem isolation**: RW access only to `/mnt/agent1`, no access to other paths
 - **Binary restriction**: Only shell + opencode + minimal dependencies
 - **Network isolation**: All internet traffic routed through proxy
+- **Dynamic runtime**: Spawn/destroy agents without nixos-rebuild
 - **K3s deployment**: For flexibility, redundancy, and orchestration
+
+## Deployment Options
+
+| Option | Rebuild Required | Dynamic Spawn | Isolation Level | Complexity |
+|--------|-----------------|---------------|-----------------|------------|
+| **Bubblewrap (bwrap)** | No | Yes | High | Low |
+| **systemd-nspawn** | No | Yes | Very High | Medium |
+| **systemd templates** | No | Yes | High | Low |
+| **Podman rootless** | No | Yes | High | Medium |
+| **K3s Pods** | No | Yes | Very High | High |
+
+**Recommended: Bubblewrap + systemd templates** for NixOS-native dynamic sandboxing.
 
 ## Architecture
 
@@ -43,9 +56,385 @@ Deploy a heavily sandboxed AI coding agent (`opencode`) with:
 
 ---
 
-## Part 1: NixOS Systemd Service (Non-K3s Option)
+## Part 0: Dynamic Runtime Sandboxing (Recommended)
 
-For standalone deployment without K3s, use heavy systemd sandboxing.
+**No rebuild required** - spawn/destroy agents at runtime with an "Agent ID Card".
+
+### 0.1 Agent ID Card Concept
+
+Each agent gets an identity card (JSON/TOML) that defines:
+
+```json
+{
+  "agent_id": "agent-alpha-001",
+  "workspace": "/mnt/agents/alpha-001",
+  "api_provider": "anthropic",
+  "api_key_file": "/run/secrets/agents/alpha-001/api-key",
+  "proxy": "http://10.100.1.1:3128",
+  "resource_limits": {
+    "memory_mb": 4096,
+    "cpu_shares": 1024,
+    "max_processes": 50
+  },
+  "allowed_hosts": ["api.anthropic.com", "api.openai.com"],
+  "ttl_seconds": 3600
+}
+```
+
+### 0.2 Bubblewrap Launcher Script
+
+```nix
+# modules/opencode-sandbox/dynamic.nix
+{ config, lib, pkgs, inputs, ... }:
+
+let
+  cfg = config.programs.opencode-sandbox;
+
+  # Minimal packages for the sandbox
+  sandboxDeps = with pkgs; [
+    dash
+    coreutils
+    git
+    curl
+    cacert
+  ];
+
+  opencode-pkg = inputs.nix-ai-tools.packages.${pkgs.stdenv.hostPlatform.system}.opencode;
+
+  # Bubblewrap launcher that reads agent ID card
+  agentLauncher = pkgs.writeShellScriptBin "opencode-spawn" ''
+    set -euo pipefail
+
+    CARD_FILE="''${1:-}"
+    if [[ -z "$CARD_FILE" || ! -f "$CARD_FILE" ]]; then
+      echo "Usage: opencode-spawn <agent-id-card.json>"
+      exit 1
+    fi
+
+    # Parse agent card
+    AGENT_ID=$(${pkgs.jq}/bin/jq -r '.agent_id' "$CARD_FILE")
+    WORKSPACE=$(${pkgs.jq}/bin/jq -r '.workspace' "$CARD_FILE")
+    API_KEY_FILE=$(${pkgs.jq}/bin/jq -r '.api_key_file // empty' "$CARD_FILE")
+    PROXY=$(${pkgs.jq}/bin/jq -r '.proxy // "http://127.0.0.1:3128"' "$CARD_FILE")
+    MEM_LIMIT=$(${pkgs.jq}/bin/jq -r '.resource_limits.memory_mb // 4096' "$CARD_FILE")
+    TTL=$(${pkgs.jq}/bin/jq -r '.ttl_seconds // 0' "$CARD_FILE")
+
+    # Validate workspace exists
+    mkdir -p "$WORKSPACE"
+
+    # Build API key argument
+    API_KEY=""
+    if [[ -n "$API_KEY_FILE" && -f "$API_KEY_FILE" ]]; then
+      API_KEY=$(cat "$API_KEY_FILE")
+    fi
+
+    echo "[opencode-spawn] Starting agent: $AGENT_ID"
+    echo "[opencode-spawn] Workspace: $WORKSPACE"
+    echo "[opencode-spawn] Proxy: $PROXY"
+
+    # Optional: timeout wrapper for TTL
+    TIMEOUT_CMD=""
+    if [[ "$TTL" -gt 0 ]]; then
+      TIMEOUT_CMD="${pkgs.coreutils}/bin/timeout $TTL"
+    fi
+
+    # Launch with bubblewrap
+    exec $TIMEOUT_CMD ${pkgs.bubblewrap}/bin/bwrap \
+      --unshare-all \
+      --share-net \
+      --die-with-parent \
+      --new-session \
+      \
+      `# Minimal root filesystem` \
+      --tmpfs / \
+      --dev /dev \
+      --proc /proc \
+      --tmpfs /tmp \
+      \
+      `# Read-only system paths` \
+      --ro-bind /nix/store /nix/store \
+      --ro-bind /etc/ssl/certs /etc/ssl/certs \
+      --ro-bind /etc/resolv.conf /etc/resolv.conf \
+      \
+      `# Symlinks for FHS compatibility` \
+      --symlink /nix/store/*-dash-*/bin/dash /bin/sh \
+      --symlink ${pkgs.coreutils}/bin /usr/bin \
+      \
+      `# ONLY the agent workspace is writable` \
+      --bind "$WORKSPACE" /workspace \
+      \
+      `# Block access to sensitive paths` \
+      --tmpfs /home \
+      --tmpfs /root \
+      --tmpfs /mnt \
+      --bind "$WORKSPACE" /mnt/workspace \
+      \
+      `# Environment` \
+      --setenv HOME /workspace \
+      --setenv OPENCODE_CONFIG_HOME /workspace/.config/opencode \
+      --setenv SSL_CERT_FILE /etc/ssl/certs/ca-bundle.crt \
+      --setenv HTTP_PROXY "$PROXY" \
+      --setenv HTTPS_PROXY "$PROXY" \
+      --setenv NO_PROXY "localhost,127.0.0.1" \
+      --setenv AGENT_ID "$AGENT_ID" \
+      ''${API_KEY:+--setenv ANTHROPIC_API_KEY "$API_KEY"} \
+      \
+      `# Chdir to workspace` \
+      --chdir /workspace \
+      \
+      `# Run opencode` \
+      ${opencode-pkg}/bin/opencode "''${@:2}"
+  '';
+
+  # Agent manager for listing/stopping agents
+  agentManager = pkgs.writeShellScriptBin "opencode-agents" ''
+    set -euo pipefail
+
+    case "''${1:-}" in
+      list)
+        echo "Running opencode agents:"
+        ${pkgs.procps}/bin/pgrep -af "opencode-spawn" || echo "  (none)"
+        ;;
+      stop)
+        AGENT_ID="''${2:-}"
+        if [[ -z "$AGENT_ID" ]]; then
+          echo "Usage: opencode-agents stop <agent-id>"
+          exit 1
+        fi
+        ${pkgs.procps}/bin/pkill -f "AGENT_ID=$AGENT_ID" && echo "Stopped $AGENT_ID" || echo "Agent not found"
+        ;;
+      *)
+        echo "Usage: opencode-agents <list|stop <agent-id>>"
+        ;;
+    esac
+  '';
+
+in
+{
+  options.programs.opencode-sandbox = {
+    enable = lib.mkEnableOption "Dynamic OpenCode sandbox launcher";
+
+    agentsDir = lib.mkOption {
+      type = lib.types.str;
+      default = "/mnt/agents";
+      description = "Base directory for agent workspaces";
+    };
+
+    cardsDir = lib.mkOption {
+      type = lib.types.str;
+      default = "/etc/opencode-agents";
+      description = "Directory for agent ID cards";
+    };
+
+    proxy = lib.mkOption {
+      type = lib.types.str;
+      default = "http://127.0.0.1:3128";
+      description = "Default proxy for agents";
+    };
+  };
+
+  config = lib.mkIf cfg.enable {
+    environment.systemPackages = [
+      agentLauncher
+      agentManager
+      pkgs.bubblewrap
+      pkgs.jq
+    ];
+
+    # Create directories
+    systemd.tmpfiles.rules = [
+      "d ${cfg.agentsDir} 0755 root root -"
+      "d ${cfg.cardsDir} 0750 root root -"
+    ];
+  };
+}
+```
+
+### 0.3 Usage Examples
+
+```bash
+# Create an agent ID card
+cat > /etc/opencode-agents/alpha-001.json << 'EOF'
+{
+  "agent_id": "alpha-001",
+  "workspace": "/mnt/agents/alpha-001",
+  "api_key_file": "/run/secrets/anthropic-key",
+  "proxy": "http://10.100.1.1:3128",
+  "resource_limits": { "memory_mb": 4096 },
+  "ttl_seconds": 7200
+}
+EOF
+
+# Spawn agent (no rebuild needed!)
+opencode-spawn /etc/opencode-agents/alpha-001.json
+
+# Spawn another agent
+opencode-spawn /etc/opencode-agents/beta-002.json --some-flag
+
+# List running agents
+opencode-agents list
+
+# Stop an agent
+opencode-agents stop alpha-001
+```
+
+### 0.4 Systemd Template Unit (Alternative)
+
+For better process management, use a systemd template:
+
+```nix
+# modules/opencode-sandbox/template.nix
+{ config, lib, pkgs, ... }:
+
+let
+  cfg = config.services.opencode-agent-template;
+in
+{
+  options.services.opencode-agent-template.enable =
+    lib.mkEnableOption "OpenCode agent systemd template";
+
+  config = lib.mkIf cfg.enable {
+    # Template unit: opencode-agent@.service
+    # Start with: systemctl start opencode-agent@alpha-001
+    systemd.services."opencode-agent@" = {
+      description = "OpenCode Agent %i";
+      after = [ "network.target" ];
+
+      # %i is the instance name (agent ID)
+      serviceConfig = {
+        Type = "simple";
+        ExecStart = "${agentLauncher}/bin/opencode-spawn /etc/opencode-agents/%i.json";
+        Restart = "on-failure";
+        RestartSec = "10s";
+
+        # Systemd-level limits (defense in depth)
+        MemoryMax = "4G";
+        CPUQuota = "200%";
+        TasksMax = 50;
+
+        # Logging
+        StandardOutput = "journal";
+        StandardError = "journal";
+        SyslogIdentifier = "opencode-%i";
+      };
+    };
+  };
+}
+```
+
+**Usage:**
+```bash
+# Create agent card
+echo '{"agent_id":"dev-agent","workspace":"/mnt/agents/dev"}' > /etc/opencode-agents/dev-agent.json
+
+# Start/stop via systemd (no rebuild!)
+systemctl start opencode-agent@dev-agent
+systemctl stop opencode-agent@dev-agent
+systemctl status opencode-agent@dev-agent
+journalctl -u opencode-agent@dev-agent -f
+```
+
+### 0.5 Network Namespace Isolation (Optional)
+
+For stronger network isolation, create per-agent network namespaces:
+
+```nix
+# Enhanced launcher with network namespace
+agentLauncherNetns = pkgs.writeShellScriptBin "opencode-spawn-isolated" ''
+  AGENT_ID="$1"
+  NETNS="agent-$AGENT_ID"
+
+  # Create network namespace with only proxy access
+  ${pkgs.iproute2}/bin/ip netns add "$NETNS" 2>/dev/null || true
+
+  # Create veth pair
+  ${pkgs.iproute2}/bin/ip link add "veth-$AGENT_ID" type veth peer name "veth-$AGENT_ID-ns"
+  ${pkgs.iproute2}/bin/ip link set "veth-$AGENT_ID-ns" netns "$NETNS"
+
+  # Configure IPs (each agent gets unique subnet)
+  SUBNET=$((100 + RANDOM % 150))
+  ${pkgs.iproute2}/bin/ip addr add "10.$SUBNET.0.1/24" dev "veth-$AGENT_ID"
+  ${pkgs.iproute2}/bin/ip netns exec "$NETNS" ip addr add "10.$SUBNET.0.2/24" dev "veth-$AGENT_ID-ns"
+  ${pkgs.iproute2}/bin/ip netns exec "$NETNS" ip link set lo up
+  ${pkgs.iproute2}/bin/ip netns exec "$NETNS" ip link set "veth-$AGENT_ID-ns" up
+  ${pkgs.iproute2}/bin/ip link set "veth-$AGENT_ID" up
+
+  # Route only to proxy (iptables on host controls this)
+  ${pkgs.iproute2}/bin/ip netns exec "$NETNS" ip route add default via "10.$SUBNET.0.1"
+
+  # Run bwrap inside the namespace
+  ${pkgs.iproute2}/bin/ip netns exec "$NETNS" ${agentLauncher}/bin/opencode-spawn "$@"
+
+  # Cleanup on exit
+  trap "${pkgs.iproute2}/bin/ip netns del '$NETNS' 2>/dev/null" EXIT
+'';
+```
+
+### 0.6 Agent Card Schema
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "OpenCode Agent ID Card",
+  "type": "object",
+  "required": ["agent_id", "workspace"],
+  "properties": {
+    "agent_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$",
+      "description": "Unique identifier for this agent"
+    },
+    "workspace": {
+      "type": "string",
+      "description": "Absolute path to agent's working directory"
+    },
+    "api_provider": {
+      "type": "string",
+      "enum": ["anthropic", "openai", "ollama", "custom"],
+      "default": "anthropic"
+    },
+    "api_key_file": {
+      "type": "string",
+      "description": "Path to file containing API key"
+    },
+    "proxy": {
+      "type": "string",
+      "format": "uri",
+      "default": "http://127.0.0.1:3128"
+    },
+    "resource_limits": {
+      "type": "object",
+      "properties": {
+        "memory_mb": { "type": "integer", "default": 4096 },
+        "cpu_shares": { "type": "integer", "default": 1024 },
+        "max_processes": { "type": "integer", "default": 50 },
+        "max_open_files": { "type": "integer", "default": 1024 }
+      }
+    },
+    "allowed_hosts": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Hostnames agent is allowed to connect to (via proxy)"
+    },
+    "ttl_seconds": {
+      "type": "integer",
+      "default": 0,
+      "description": "Auto-terminate after N seconds (0 = no limit)"
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "description": "Additional environment variables"
+    }
+  }
+}
+```
+
+---
+
+## Part 1: NixOS Systemd Service (Static Option)
+
+For static deployment without K3s, use heavy systemd sandboxing.
 
 ### 1.1 Module: `modules/opencode-sandbox/default.nix`
 
