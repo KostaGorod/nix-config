@@ -182,7 +182,6 @@ in
     reflector = false; # Don't reflect mDNS (used by AirPlay across subnets)
   };
 
-  services.nscd.enable = false;
   # Enable sound.
   # hardware.pulseaudio.enable = true;
   # OR
