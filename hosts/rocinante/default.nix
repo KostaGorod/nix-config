@@ -17,6 +17,7 @@ in
   imports = [
     ./hardware-configuration.nix
     ../../modules/nixos/fingerprint.nix
+    ./configuration.nix
   ];
 
   # Boot menu label: use git commit info or "dirty" if uncommitted
@@ -64,7 +65,7 @@ in
     }
   ];
   networking.timeServers = [ "timeserver.iix.net.il" ];
-  networking.firewall.enable = false;
+  # firewall configured in configuration.nix
 
   # Virtualization
   virtualisation.docker.enable = true;
@@ -126,18 +127,7 @@ in
     nix-direnv.enable = true;
   };
 
-  # User account definition (packages moved to users/kosta/)
-  users.users.kosta = {
-    isNormalUser = true;
-    extraGroups = [
-      "wheel"
-      "networkmanager"
-      "docker"
-      "adbusers"
-    ];
-    shell = pkgs.bash;
-    # packages are now in users/kosta/packages.nix via home-manager
-  };
+  # User account defined in configuration.nix
 
   # Minimal system packages (emergency/system-wide tools only)
   environment.systemPackages = with pkgs; [

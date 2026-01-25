@@ -29,11 +29,12 @@ in
 
   # 2. Import the networking modules from the stable nixpkgs
   imports = [
-    ./hardware-configuration.nix # Include the results of the hardware scan.
+    # hardware-configuration.nix imported via default.nix
     ../../modules/nixos/tailscale.nix # Tailscale configuration module
     ../../modules/nixos/nix-ld.nix # nix-ld for dynamic binary support (uv, python venvs)
     ../../modules/nixos/opencode.nix # OpenCode AI coding agent
     ../../modules/nixos/claude-code.nix # Claude Code CLI
+    ../../modules/nixos/mem0.nix # Mem0 AI memory layer
     # ../../modules/nixos/codex.nix # Numtide Codex AI assistant (temporarily disabled)
     ../../modules/nixos/bitwarden.nix # Bitwarden password manager (unstable)
 
@@ -181,7 +182,6 @@ in
     reflector = false; # Don't reflect mDNS (used by AirPlay across subnets)
   };
 
-  services.nscd.enable = false;
   # Enable sound.
   # hardware.pulseaudio.enable = true;
   # OR
@@ -262,16 +262,38 @@ in
   # Enable OpenCode AI coding agent
   programs.opencode.enable = true;
 
-  # Enable Abacus.AI DeepAgent desktop client and CLI
-  programs.abacusai.enable = true;
+  # Enable Mem0 AI memory layer for persistent agent memory (self-hosted)
+  programs.mem0 = {
+    enable = true;
+    selfHosted = true;
+    userId = "kosta";
+  };
 
-  # Enable Vibe Kanban AI coding agent orchestration (systemd service)
-  services.vibe-kanban = {
-    enable = false;
-    port = 8080;
+  # Mem0 MCP server as systemd service (SSE transport)
+  services.mem0 = {
+    enable = true;
+    port = 8050;
+    userId = "kosta";
     # host = "0.0.0.0";  # uncomment to expose to network
     # openFirewall = true;
+
+    # VoyageAI embeddings (voyage-4-lite)
+    embedder = {
+      provider = "voyageai";
+      model = "voyage-4-lite";
+      apiKeyFile = "/run/secrets/voyage-api-key";  # Create this file with your API key
+    };
+
+    # LLM for memory extraction (uses Anthropic)
+    llm = {
+      provider = "anthropic";
+      model = "claude-sonnet-4-20250514";
+      apiKeyFile = "/run/secrets/anthropic-api-key";  # Create this file with your API key
+    };
   };
+
+  # Enable Abacus.AI DeepAgent desktop client and CLI
+  programs.abacusai.enable = true;
 
   # Enable Bitwarden password manager (from nixpkgs-unstable)
   programs.bitwarden.enable = true;
