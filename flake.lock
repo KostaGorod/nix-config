@@ -5,14 +5,20 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "path": "flakes/abacusai-fhs",
-        "type": "path"
+        "dir": "flakes/abacusai-fhs",
+        "lastModified": 1769338031,
+        "narHash": "sha256-2RzgIPchFsbBuiIrEL1afblvNxnNP49ORA2wSldq9oA=",
+        "ref": "refs/heads/refactor/flake-parts-modular-structure",
+        "rev": "07443a7c05f906abe297c424db2c68191a42af4a",
+        "revCount": 78,
+        "type": "git",
+        "url": "file:./"
       },
       "original": {
-        "path": "flakes/abacusai-fhs",
-        "type": "path"
-      },
-      "parent": []
+        "dir": "flakes/abacusai-fhs",
+        "type": "git",
+        "url": "file:./"
+      }
     },
     "antigravity-fhs": {
       "inputs": {
@@ -24,14 +30,20 @@
         ]
       },
       "locked": {
-        "path": "flakes/antigravity-fhs",
-        "type": "path"
+        "dir": "flakes/antigravity-fhs",
+        "lastModified": 1769338031,
+        "narHash": "sha256-2RzgIPchFsbBuiIrEL1afblvNxnNP49ORA2wSldq9oA=",
+        "ref": "refs/heads/refactor/flake-parts-modular-structure",
+        "rev": "07443a7c05f906abe297c424db2c68191a42af4a",
+        "revCount": 78,
+        "type": "git",
+        "url": "file:./"
       },
       "original": {
-        "path": "flakes/antigravity-fhs",
-        "type": "path"
-      },
-      "parent": []
+        "dir": "flakes/antigravity-fhs",
+        "type": "git",
+        "url": "file:./"
+      }
     },
     "antigravity-nix": {
       "inputs": {
@@ -435,14 +447,20 @@
         "nixpkgs": "nixpkgs_5"
       },
       "locked": {
-        "path": "flakes/vibe-kanban",
-        "type": "path"
+        "dir": "flakes/vibe-kanban",
+        "lastModified": 1769338031,
+        "narHash": "sha256-2RzgIPchFsbBuiIrEL1afblvNxnNP49ORA2wSldq9oA=",
+        "ref": "refs/heads/refactor/flake-parts-modular-structure",
+        "rev": "07443a7c05f906abe297c424db2c68191a42af4a",
+        "revCount": 78,
+        "type": "git",
+        "url": "file:./"
       },
       "original": {
-        "path": "flakes/vibe-kanban",
-        "type": "path"
-      },
-      "parent": []
+        "dir": "flakes/vibe-kanban",
+        "type": "git",
+        "url": "file:./"
+      }
     },
     "zen-browser": {
       "inputs": {
