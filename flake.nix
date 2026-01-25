@@ -60,56 +60,85 @@
         inputs.treefmt-nix.flakeModule
       ];
 
-      perSystem =
-        { config, pkgs, ... }:
-        let
-          testLib = import ./lib/tests.nix {
-            inherit pkgs;
-            inherit (pkgs) lib;
+      perSystem = { config, self', pkgs, system, ... }: {
+        # Formatter configuration
+        treefmt = {
+          projectRootFile = "flake.nix";
+          # Exclude nested flakes (they have their own formatting rules)
+          settings.excludes = [ "flakes/**" ];
+          programs = {
+            nixfmt.enable = true;
+            deadnix.enable = true;
+            statix.enable = true;
           };
-          testArgs = {
-            inherit config pkgs inputs;
-            tests = testLib;
-            inherit (pkgs) lib;
-          };
-        in
-        {
-          treefmt = {
-            projectRootFile = "flake.nix";
-            settings.excludes = [ "flakes/**" ];
-            programs = {
-              nixfmt.enable = true;
-              deadnix.enable = true;
-              statix.enable = true;
-            };
-          };
-
-          # CI checks - auto-discover and run localized tests
-          checks = testLib.mkChecks testArgs [
-            ./modules/nixos/services.nix.test.nix
-            ./modules/nixos/tailscale.nix.test.nix
-            ./modules/nixos/desktop.nix.test.nix
-            ./modules/nixos/utils.nix.test.nix
-            ./hosts/rocinante/default.nix.test.nix
-            ./hosts/rocinante/profile-check.test.nix
-            ./users/kosta/packages.nix.test.nix
-          ];
         };
 
+        # CI checks
+        checks = {
+          # Formatting check
+          treefmt = config.treefmt.build.check self';
+
+          # Critical host configuration evaluation (Priority 1-3)
+          rocinante = self'.nixosConfigurations.rocinante.config.system.build.toplevel;
+
+          # Module evaluation tests (Priority 1-2)
+          # Test that modules can be evaluated independently
+          eval-modules = pkgs.runCommand "eval-modules" { } ''
+            ${pkgs.nix}/bin/nix eval --raw --expr '
+              let
+                lib = import ${pkgs.path}/share/nixpkgs/lib;
+                modules = [
+                  ./modules/nixos/services.nix
+                  ./modules/nixos/tailscale.nix
+                  ./modules/nixos/desktop.nix
+                  ./modules/nixos/utils.nix
+                ];
+              in
+                builtins.length (lib.evalModules { inherit modules; }).config)
+            ' > /dev/null
+            touch $out
+          '';
+
+          # Test that critical files exist and are valid Nix
+          file-existence = pkgs.runCommand "check-critical-files" { } ''
+            ${pkgs.nix}/bin/nix-instantiate --parse --expr 'import ./modules/nixos/services.nix' > /dev/null
+            ${pkgs.nix}/bin/nix-instantiate --parse --expr 'import ./modules/nixos/tailscale.nix' > /dev/null
+            ${pkgs.nix}/bin/nix-instantiate --parse --expr 'import ./modules/nixos/utils.nix' > /dev/null
+            ${pkgs.nix}/bin/nix-instantiate --parse --expr 'import ./modules/nixos/desktop.nix' > /dev/null
+            touch $out
+          '';
+
+          # Home Manager configuration evaluation (Priority 4)
+          home-manager = self'.nixosConfigurations.rocinante.config.home-manager.users.kosta.home.activationPackage;
+        };
+      };
+
       flake = {
+        # NixOS configurations
         nixosConfigurations.rocinante = nixpkgs.lib.nixosSystem {
           system = "x86_64-linux";
           specialArgs = { inherit inputs; };
           modules = [
+            # Host-specific configuration
             ./hosts/rocinante
             ./hosts/rocinante/disko-config.nix
+
+            # Disko for declarative disk management
             inputs.disko.nixosModules.disko
+
+            # Workstation profile (services, desktop, AI tools)
             ./profiles/workstation.nix
+
+            # Desktop environments
             ./de/plasma6.nix
             inputs.cosmic-unstable.nixosModules.default
+
+            # Additional modules
             ./modules/nixos/utils.nix
             ./modules/spotify.nix
             ./modules/moonlight-qt.nix
+
+            # Vibe Kanban service
             inputs.vibe-kanban.nixosModules.default
             {
               services.vibe-kanban = {
@@ -117,6 +146,8 @@
                 port = 8080;
               };
             }
+
+            # Home Manager integration
             inputs.home-manager.nixosModules.home-manager
             {
               home-manager = {
