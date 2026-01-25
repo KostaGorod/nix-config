@@ -2,8 +2,8 @@ _:
 
 {
   services = {
-    displayManager.sddm.enable = false;
-    displayManager.sddm.wayland.enable = false;
+    displayManager.sddm.enable = true;
+    displayManager.sddm.wayland.enable = true;
 
     desktopManager.plasma6.enable = true;
     desktopManager.plasma6.enableQt5Integration = true; # disable for qt6 full version;
