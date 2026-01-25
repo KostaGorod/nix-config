@@ -32,9 +32,9 @@
       inputs.nixpkgs.follows = "nixpkgs-unstable";
     };
 
-    antigravity-fhs.url = "path:flakes/antigravity-fhs";
-    abacusai-fhs.url = "path:flakes/abacusai-fhs";
-    vibe-kanban.url = "path:flakes/vibe-kanban";
+    antigravity-fhs.url = "git+file:./?dir=flakes/antigravity-fhs";
+    abacusai-fhs.url = "git+file:./?dir=flakes/abacusai-fhs";
+    vibe-kanban.url = "git+file:./?dir=flakes/vibe-kanban";
 
     # cosmic-unstable = {
     #   url = "github:lilyinstarlight/nixos-cosmic";
