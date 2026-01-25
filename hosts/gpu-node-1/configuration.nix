@@ -1,13 +1,10 @@
-{ config, pkgs, inputs, lib, ... }:
+{ config, pkgs, inputs, ... }:
 
 {
   imports = [
     ./hardware-configuration.nix
     ../../modules/k3s/server.nix
     ../../modules/nvidia/default.nix
-    ../../modules/nixos/vfio.nix
-    ../../modules/nixos/libvirt.nix
-    ../../modules/nixos/gpu-arbiter.nix
   ];
 
   # =============================================================================
@@ -21,9 +18,9 @@
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
   
-  # Enable IOMMU for GPU passthrough capability (Intel vIOMMU in Proxmox VM)
+  # Enable IOMMU for GPU passthrough capability
   boot.kernelParams = [
-    "intel_iommu=on"
+    "amd_iommu=on"
     "iommu=pt"
   ];
 
@@ -118,10 +115,13 @@
   # =============================================================================
   users.users.kosta = {
     isNormalUser = true;
-    extraGroups = [ "wheel" "docker" "video" "render" "libvirtd" ];
+    extraGroups = [ "wheel" "docker" "video" "render" ];
     openssh.authorizedKeys.keys = [
+      # Add your SSH public key here
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFtkgXu/YbIS0vS4D/gZwejFfTs5JgnzuC8mJ7458M8/ kosta@rocinante"
     ];
+    # Generate with: mkpasswd -m sha-512
+    # Or use: nix-shell -p mkpasswd --run 'mkpasswd -m sha-512'
     hashedPassword = "$6$DEZMi88WK4aKrWfc$HNdlAblj5.KRkmizg6fffuDexQmYGLewdmiu1w1FtBRSWvQs9BSfGCv8wIJ8bive3ZSCdGW11qo4YX6dTgmPQ1";
   };
 
@@ -135,53 +135,10 @@
     vim
     git
     htop
-    nvtopPackages.full
+    nvtopPackages.full  # nvtop changed in recent nixpkgs
     kubectl
     k9s
     pciutils
     lshw
-    tmux
   ];
-
-  # =============================================================================
-  # GPU ARBITER CONFIGURATION
-  # Maps GPU index to PCI address and Windows VM name
-  # =============================================================================
-  # Override the default gpu-arbiter config with actual values
-  # NOTE: Update GPU_PCI[0] with actual PCI address from: lspci -nn | grep -i nvidia
-  environment.etc."gpu-arbiter/config" = {
-    mode = "0640";
-    user = "root";
-    group = "wheel";
-    text = ''
-      # GPU Arbiter Configuration for gpu-node-1
-      # RTX 2070 Super passed through from Proxmox
-      
-      declare -A GPU_PCI
-      declare -A VM_NAMES
-      NODE_NAME="gpu-node-1"
-      
-      # GPU 0: RTX 2070 Super
-      # TODO: Update this with actual PCI address from: lspci -nn | grep -i nvidia
-      GPU_PCI[0]="0000:01:00.0"
-      
-      # Windows gaming VM name (create with virt-manager)
-      VM_NAMES[0]="windows-gaming"
-    '';
-  };
-
-  # =============================================================================
-  # GPU ARBITER ACCESS CONTROL
-  # Only kosta can run gpu-arbiter (requires sudo)
-  # =============================================================================
-  security.sudo.extraRules = [
-    {
-      users = [ "kosta" ];
-      commands = [
-        { command = "${pkgs.libvirt}/bin/virsh *"; options = [ "NOPASSWD" ]; }
-        { command = "/run/current-system/sw/bin/gpu-arbiter *"; options = [ "NOPASSWD" ]; }
-      ];
-    }
-  ];
-
 }
