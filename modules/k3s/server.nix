@@ -116,12 +116,8 @@ spec:
             # Use CDI for device discovery (works better with NixOS)
             - name: DEVICE_DISCOVERY_STRATEGY
               value: "cdi"
-            # CDI spec is at /var/run/cdi/nvidia-container-toolkit.json
             - name: CDI_ROOT
               value: "/var/run/cdi"
-            # Also set CDI_KIND to match the file name (vendor is nvidia.com)
-            - name: CDI_KIND
-              value: "nvidia.com/gpu"
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
@@ -132,10 +128,6 @@ spec:
             - name: cdi
               mountPath: /var/run/cdi
               readOnly: true
-            # Also mount /etc/cdi for potential configs there
-            - name: cdi-etc
-              mountPath: /etc/cdi
-              readOnly: true
       volumes:
         - name: device-plugin
           hostPath:
@@ -143,10 +135,6 @@ spec:
         - name: cdi
           hostPath:
             path: /var/run/cdi
-        - name: cdi-etc
-          hostPath:
-            path: /etc/cdi
-            type: DirectoryOrCreate
 EOF
   '';
 
