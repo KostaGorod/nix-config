@@ -94,8 +94,8 @@
             # inputs.cosmic-unstable.nixosModules.default
             ./de/cosmic.nix
             ./modules/nixos/utils.nix
-            ./modules/nixos/spotify.nix
-            ./modules/nixos/moonlight-qt.nix
+            ./modules/spotify.nix
+            ./modules/moonlight-qt.nix
             inputs.vibe-kanban.nixosModules.default
             {
               services.vibe-kanban = {

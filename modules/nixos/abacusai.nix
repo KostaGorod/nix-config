@@ -1,3 +1,4 @@
+# AbacusAI DeepAgent module
 {
   config,
   lib,
@@ -8,29 +9,27 @@
 
 let
   cfg = config.programs.abacusai;
-  abacusai-pkgs = inputs.abacusai-fhs.packages.${pkgs.stdenv.hostPlatform.system};
 in
 {
   options.programs.abacusai = {
-    enable = lib.mkEnableOption "Abacus.AI DeepAgent desktop client and CLI";
+    enable = lib.mkEnableOption "AbacusAI DeepAgent desktop client and CLI";
 
-    gui = lib.mkOption {
+    package = lib.mkOption {
       type = lib.types.package;
-      default = abacusai-pkgs.gui;
-      description = "The AbacusAI GUI package.";
-    };
-
-    cli = lib.mkOption {
-      type = lib.types.package;
-      default = abacusai-pkgs.cli;
-      description = "The AbacusAI CLI package.";
+      inherit (inputs.abacusai-fhs.packages.${pkgs.stdenv.hostPlatform.system}) default;
+      description = "The AbacusAI package to use";
     };
   };
 
   config = lib.mkIf cfg.enable {
     environment.systemPackages = [
-      cfg.gui
-      cfg.cli
+      cfg.package
+    ];
+
+    # Create necessary directories for AbacusAI
+    systemd.tmpfiles.rules = [
+      "d %h/.config/abacusai 0755 - - -"
+      "d %h/.cache/abacusai 0755 - - -"
     ];
   };
 }
