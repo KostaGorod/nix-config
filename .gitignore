@@ -15,6 +15,3 @@ result-*
 # OS
 .DS_Store
 Thumbs.db
-
-# Direnv
-.direnv/

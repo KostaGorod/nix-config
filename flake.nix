@@ -95,7 +95,7 @@
             inputs.cosmic-unstable.nixosModules.default
 
             # Additional modules
-            ./modules/nixos/utils.nix
+            ./modules/utils.nix
             ./modules/spotify.nix
             ./modules/moonlight-qt.nix
 
