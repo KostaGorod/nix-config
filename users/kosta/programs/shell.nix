@@ -13,9 +13,6 @@ _: {
       gl = "git log";
       g = "git";
       k = "kubectl";
-      nftest = "cd /home/kosta/nix-config && nix flake check --flake .#rocinante";
-      nfswitch = "cd /home/kosta/nix-config && sudo nixos-rebuild switch --flake .#rocinante";
-      nftestswitch = "nftest && nfswitch";
     };
     bashrcExtra = ''
       export PATH="$PATH:$HOME/bin:$HOME/.local/bin"
