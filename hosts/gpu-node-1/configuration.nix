@@ -59,17 +59,46 @@
     };
   };
 
-  # systemd-networkd configuration - simple DHCP for now
-  # VLAN for K8s traffic will be added later when node-2 is set up
+  # systemd-networkd configuration for VLAN
   systemd.network = {
     enable = true;
     
+    netdevs = {
+      "10-vlan100" = {
+        netdevConfig = {
+          Kind = "vlan";
+          Name = "vlan100";
+        };
+        vlanConfig.Id = 100;
+      };
+    };
+    
     networks = {
+      # Main interface - VLAN trunk + default network
       "20-main" = {
         matchConfig.Name = "en*";  # Match ethernet interface
+        vlan = [ "vlan100" ];
         networkConfig = {
-          DHCP = "yes";
+          DHCP = "yes";  # Default/untagged VLAN for SSH access
         };
+        dhcpV4Config = {
+          RouteMetric = 100;  # Lower priority than VLAN100 if both have routes
+        };
+      };
+      
+      # K8s VLAN with static IP
+      "30-vlan100" = {
+        matchConfig.Name = "vlan100";
+        networkConfig = {
+          Address = "10.100.1.10/24";
+          Gateway = "10.100.1.1";
+          DNS = [ "10.100.1.1" "1.1.1.1" ];
+          DHCP = "no";
+        };
+        routes = [
+          # K8s traffic uses VLAN100 gateway
+          { Destination = "10.100.0.0/16"; Gateway = "10.100.1.1"; Metric = 50; }
+        ];
       };
     };
   };
