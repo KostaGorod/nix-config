@@ -105,9 +105,6 @@ in
   environment.variables.EDITOR = "hx";
   environment.sessionVariables = {
     LIBVA_DRIVER_NAME = "iHD";
-    # Fix cross-device link error for Claude Code plugin installation
-    # Use ~/.claude/tmp instead of /tmp (which may be on tmpfs)
-    TMPDIR = "$HOME/.claude/tmp";
   };
 
   # Security

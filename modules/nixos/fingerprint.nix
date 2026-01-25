@@ -30,7 +30,7 @@ let
       --icon=fingerprint-gui \
       --app-name="Authentication" \
       --expire-time=10000 \
-      "Fingerprint Required" \
+      "🔐 Fingerprint Required" \
       "Place your finger on the sensor" 2>/dev/null || true
   '';
 
@@ -80,27 +80,9 @@ in
       libnotify
       fingerprint-popup
       fprintd-verify-notify
-      lxqt.lxqt-policykit
     ];
 
     # Ensure PolicyKit is enabled for GUI authentication
     security.polkit.enable = true;
-
-    # Autostart polkit agent on graphical session
-    # (COSMIC DE doesn't have its own polkit agent yet)
-    # Using lxqt-policykit - lightweight, proven Wayland compatible
-    systemd.user.services.polkit-agent = {
-      description = "LXQt Polkit Authentication Agent";
-      wantedBy = [ "graphical-session.target" ];
-      wants = [ "graphical-session.target" ];
-      after = [ "graphical-session.target" ];
-      serviceConfig = {
-        Type = "simple";
-        ExecStart = "${pkgs.lxqt.lxqt-policykit}/bin/lxqt-policykit-agent";
-        Restart = "on-failure";
-        RestartSec = 1;
-        TimeoutStopSec = 10;
-      };
-    };
   };
 }
