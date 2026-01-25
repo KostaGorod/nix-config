@@ -19,8 +19,6 @@
       "--cluster-init"              # Initialize HA-capable cluster
       # GPU status labels (managed by gpu-arbiter)
       "--node-label=gpu-0-status=available"
-      # Set nvidia as default container runtime for GPU workloads
-      "--default-runtime=nvidia"
     ];
   };
 
@@ -80,7 +78,7 @@ EOF
   # =============================================================================
   # NVIDIA Device Plugin for Kubernetes
   # Auto-deploy via K3s manifests directory
-  # Uses nvml (nvidia-smi) for GPU discovery - simpler and more reliable on NixOS
+  # Uses CDI mode for GPU discovery
   # =============================================================================
   system.activationScripts.k3s-nvidia-device-plugin = lib.stringAfter [ "var" ] ''
     mkdir -p /var/lib/rancher/k3s/server/manifests
@@ -101,7 +99,7 @@ spec:
       labels:
         name: nvidia-device-plugin-ds
     spec:
-      # No runtimeClassName needed - nvidia is now default runtime via --default-runtime
+      runtimeClassName: nvidia
       tolerations:
         - key: nvidia.com/gpu
           operator: Exists
@@ -115,21 +113,40 @@ spec:
         - name: nvidia-device-plugin-ctr
           image: nvcr.io/nvidia/k8s-device-plugin:v0.17.0
           env:
-            # Use nvml (nvidia-smi) for device discovery - more reliable than CDI on NixOS
+            # Use CDI for device discovery (works better with NixOS)
             - name: DEVICE_DISCOVERY_STRATEGY
-              value: "nvml"
-            # Don't fail on init error - allows graceful handling of GPU unavailability
-            - name: FAIL_ON_INIT_ERROR
-              value: "false"
+              value: "cdi"
+            # CDI spec is at /var/run/cdi/nvidia-container-toolkit.json
+            - name: CDI_ROOT
+              value: "/var/run/cdi"
+            # Also set CDI_KIND to match the file name (vendor is nvidia.com)
+            - name: CDI_KIND
+              value: "nvidia.com/gpu"
           securityContext:
-            privileged: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
           volumeMounts:
             - name: device-plugin
               mountPath: /var/lib/kubelet/device-plugins
+            - name: cdi
+              mountPath: /var/run/cdi
+              readOnly: true
+            # Also mount /etc/cdi for potential configs there
+            - name: cdi-etc
+              mountPath: /etc/cdi
+              readOnly: true
       volumes:
         - name: device-plugin
           hostPath:
             path: /var/lib/kubelet/device-plugins
+        - name: cdi
+          hostPath:
+            path: /var/run/cdi
+        - name: cdi-etc
+          hostPath:
+            path: /etc/cdi
+            type: DirectoryOrCreate
 EOF
   '';
 
