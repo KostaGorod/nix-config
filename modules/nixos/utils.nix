@@ -7,7 +7,6 @@
     p7zip
 
     ripgrep # recursively searches directories for a regex pattern
-    ast-grep # structural code search tool
     jq # A lightweight and flexible command-line JSON processor
     yq-go # yaml processor https://github.com/mikefarah/yq
     eza # A modern replacement for ‘ls’
