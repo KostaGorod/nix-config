@@ -13,7 +13,6 @@ in
     ./programs/shell.nix
     ./programs/editors.nix
     ./programs/services.nix
-    ./programs/fuzzel.nix
   ];
 
   home = {
