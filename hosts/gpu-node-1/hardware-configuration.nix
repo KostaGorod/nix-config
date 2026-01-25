@@ -4,7 +4,12 @@
 # VM ID: 102 on Proxmox
 # Machine type: q35 with OVMF UEFI
 
-{ config, lib, pkgs, modulesPath, ... }:
+{
+  config,
+  lib,
+  modulesPath,
+  ...
+}:
 
 {
   imports = [
@@ -15,12 +20,12 @@
   # =============================================================================
   # BOOT
   # =============================================================================
-  boot.initrd.availableKernelModules = [ 
-    "ahci" 
-    "xhci_pci" 
-    "virtio_pci" 
+  boot.initrd.availableKernelModules = [
+    "ahci"
+    "xhci_pci"
+    "virtio_pci"
     "virtio_scsi"
-    "sd_mod" 
+    "sd_mod"
     "sr_mod"
     # VFIO modules for nested GPU passthrough
     "vfio_pci"
@@ -29,7 +34,12 @@
   ];
   boot.initrd.kernelModules = [ ];
   # Intel KVM for nested virtualization (Proxmox exposes Intel vCPU)
-  boot.kernelModules = [ "kvm-intel" "vfio_pci" "vfio" "vfio_iommu_type1" ];
+  boot.kernelModules = [
+    "kvm-intel"
+    "vfio_pci"
+    "vfio"
+    "vfio_iommu_type1"
+  ];
   boot.extraModulePackages = [ ];
 
   # VFIO options for GPU passthrough
@@ -47,7 +57,7 @@
   # =============================================================================
   # Intel microcode for Proxmox's Intel vCPU
   hardware.cpu.intel.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;
-  
+
   # Enable all firmware
   hardware.enableRedistributableFirmware = true;
   hardware.enableAllFirmware = true;

@@ -52,7 +52,7 @@
 
   # Power management
   services.power-profiles-daemon.enable = false;
-  
+
   # System76 Scheduler - prioritizes foreground apps, improves responsiveness
   services.system76-scheduler = {
     enable = true;

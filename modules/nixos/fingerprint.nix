@@ -15,7 +15,7 @@ let
     # Get the user's display
     export DISPLAY=:0
     export WAYLAND_DISPLAY=''${WAYLAND_DISPLAY:-wayland-1}
-    
+
     # Find user's runtime dir for dbus
     for user_run in /run/user/*; do
       if [ -S "$user_run/bus" ]; then
@@ -45,10 +45,18 @@ in
     enable = lib.mkEnableOption "fingerprint reader support";
 
     # Enable for specific PAM services
-    sudo = lib.mkEnableOption "fingerprint auth for sudo" // { default = true; };
-    polkit = lib.mkEnableOption "fingerprint auth for polkit (GUI privilege escalation)" // { default = true; };
-    login = lib.mkEnableOption "fingerprint auth for greeter login" // { default = false; };
-    screenLock = lib.mkEnableOption "fingerprint auth for screen lock" // { default = true; };
+    sudo = lib.mkEnableOption "fingerprint auth for sudo" // {
+      default = true;
+    };
+    polkit = lib.mkEnableOption "fingerprint auth for polkit (GUI privilege escalation)" // {
+      default = true;
+    };
+    login = lib.mkEnableOption "fingerprint auth for greeter login" // {
+      default = false;
+    };
+    screenLock = lib.mkEnableOption "fingerprint auth for screen lock" // {
+      default = true;
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -60,15 +68,15 @@ in
       # sudo/su: fingerprint with password fallback
       sudo.fprintAuth = cfg.sudo;
       su.fprintAuth = cfg.sudo;
-      
+
       # polkit: fingerprint for GUI privilege escalation
       polkit-1.fprintAuth = cfg.polkit;
-      
+
       # Login: password only (to unlock keyring)
       greetd.fprintAuth = cfg.login;
       cosmic-greeter.fprintAuth = cfg.login;
       login.fprintAuth = cfg.login;
-      
+
       # Screen lock: fingerprint for quick unlock
       swaylock.fprintAuth = cfg.screenLock;
       hyprlock.fprintAuth = cfg.screenLock;

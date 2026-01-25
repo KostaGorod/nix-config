@@ -1,4 +1,4 @@
-{ config, pkgs, inputs, lib, ... }:
+{ pkgs, ... }:
 
 {
   imports = [
@@ -15,13 +15,13 @@
   # SYSTEM
   # =============================================================================
   system.stateVersion = "25.11";
-  
+
   # Allow unfree packages (required for NVIDIA drivers, steam, etc)
   nixpkgs.config.allowUnfree = true;
-  
+
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
-  
+
   # Enable IOMMU for GPU passthrough capability (Intel vIOMMU in Proxmox VM)
   boot.kernelParams = [
     "intel_iommu=on"
@@ -33,26 +33,26 @@
   # =============================================================================
   networking = {
     hostName = "gpu-node-1";
-    
+
     # Disable NetworkManager for server (use systemd-networkd)
     networkmanager.enable = false;
     useNetworkd = true;
-    
+
     # Firewall - allow K3s ports
     firewall = {
       enable = true;
       allowedTCPPorts = [
-        22      # SSH
-        6443    # K3s API server
-        10250   # Kubelet
-        2379    # etcd client
-        2380    # etcd peer
-        80      # HTTP (ingress)
-        443     # HTTPS (ingress)
+        22 # SSH
+        6443 # K3s API server
+        10250 # Kubelet
+        2379 # etcd client
+        2380 # etcd peer
+        80 # HTTP (ingress)
+        443 # HTTPS (ingress)
       ];
       allowedUDPPorts = [
-        8472    # Flannel VXLAN
-        51820   # WireGuard (if using)
+        8472 # Flannel VXLAN
+        51820 # WireGuard (if using)
         # 41641 added by tailscale.nix module
       ];
       # tailscale0 added as trusted interface by tailscale.nix module
@@ -63,10 +63,10 @@
   # VLAN for K8s traffic will be added later when node-2 is set up
   systemd.network = {
     enable = true;
-    
+
     networks = {
       "20-main" = {
-        matchConfig.Name = "en*";  # Match ethernet interface
+        matchConfig.Name = "en*"; # Match ethernet interface
         networkConfig = {
           DHCP = "yes";
         };
@@ -77,7 +77,7 @@
   # =============================================================================
   # SERVICES
   # =============================================================================
-  
+
   # SSH
   services.openssh = {
     enable = true;
@@ -92,7 +92,13 @@
   # =============================================================================
   users.users.kosta = {
     isNormalUser = true;
-    extraGroups = [ "wheel" "docker" "video" "render" "libvirtd" ];
+    extraGroups = [
+      "wheel"
+      "docker"
+      "video"
+      "render"
+      "libvirtd"
+    ];
     openssh.authorizedKeys.keys = [
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFtkgXu/YbIS0vS4D/gZwejFfTs5JgnzuC8mJ7458M8/ kosta@rocinante"
     ];
@@ -130,15 +136,15 @@
     text = ''
       # GPU Arbiter Configuration for gpu-node-1
       # RTX 2070 Super passed through from Proxmox
-      
+
       declare -A GPU_PCI
       declare -A VM_NAMES
       NODE_NAME="gpu-node-1"
-      
+
       # GPU 0: RTX 2070 Super
       # TODO: Update this with actual PCI address from: lspci -nn | grep -i nvidia
       GPU_PCI[0]="0000:01:00.0"
-      
+
       # Windows gaming VM name (create with virt-manager)
       VM_NAMES[0]="windows-gaming"
     '';
@@ -152,8 +158,14 @@
     {
       users = [ "kosta" ];
       commands = [
-        { command = "${pkgs.libvirt}/bin/virsh *"; options = [ "NOPASSWD" ]; }
-        { command = "/run/current-system/sw/bin/gpu-arbiter *"; options = [ "NOPASSWD" ]; }
+        {
+          command = "${pkgs.libvirt}/bin/virsh *";
+          options = [ "NOPASSWD" ];
+        }
+        {
+          command = "/run/current-system/sw/bin/gpu-arbiter *";
+          options = [ "NOPASSWD" ];
+        }
       ];
     }
   ];

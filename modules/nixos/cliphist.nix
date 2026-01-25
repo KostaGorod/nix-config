@@ -1,7 +1,7 @@
 # Cliphist - Wayland clipboard history with password manager support
 # Uses wl-clipboard-sensitive (git version) that respects x-kde-passwordManagerHint
 # Bitwarden, KeePassXC, 1Password will NOT have passwords stored in history
-{ config, pkgs, lib, ... }:
+{ pkgs, ... }:
 
 let
   # Apply the overlay to get wl-clipboard with sensitive support

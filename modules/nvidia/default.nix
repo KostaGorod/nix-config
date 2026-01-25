@@ -1,11 +1,11 @@
-{ config, lib, pkgs, ... }:
+{ config, pkgs, ... }:
 
 {
   # =============================================================================
   # NVIDIA DRIVER CONFIGURATION
   # For GPU compute (K3s AI workloads) with support for dynamic VFIO switching
   # =============================================================================
-  
+
   # Enable OpenGL/Vulkan
   hardware.graphics = {
     enable = true;
@@ -38,7 +38,7 @@
   # NIXPKGS NVIDIA SETTINGS
   # =============================================================================
   nixpkgs.config.nvidia.acceptLicense = true;
-  
+
   # Load nvidia kernel driver (required for container-toolkit and K3s GPU access)
   # NOTE: datacenter.enable is NOT needed for consumer GPUs (RTX 2070, 3080, 4090, etc.)
   # Datacenter mode is only for Tesla, A100, H100 with NVLink/NVSwitch topologies
@@ -71,7 +71,7 @@
   # When GPU is in "AI mode", we can optionally enable it for performance
   # =============================================================================
   systemd.services.nvidia-persistenced.enable = false;
-  
+
   # =============================================================================
   # PACKAGES
   # =============================================================================

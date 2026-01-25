@@ -1,7 +1,7 @@
 # nix-ld configuration for running dynamically linked binaries
 # This enables tools like uv, poetry, and other Python package managers
 # to work with precompiled binaries in virtual environments.
-{ config, lib, pkgs, ... }:
+{ pkgs, ... }:
 
 {
   # Enable nix-ld to provide a dynamic linker for non-NixOS binaries
@@ -11,12 +11,12 @@
     # Common libraries needed by Python packages and other dynamic binaries
     libraries = with pkgs; [
       # Core C/C++ runtime
-      stdenv.cc.cc.lib  # libstdc++.so
-      zlib              # Required by many Python packages
-      glib              # GLib library
+      stdenv.cc.cc.lib # libstdc++.so
+      zlib # Required by many Python packages
+      glib # GLib library
 
       # SSL/Crypto
-      openssl           # SSL/TLS support
+      openssl # SSL/TLS support
 
       # Compression
       bzip2

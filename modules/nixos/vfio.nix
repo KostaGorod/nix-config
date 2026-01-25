@@ -1,11 +1,11 @@
 # VFIO module for GPU passthrough to nested VMs
 # Enables driver switching between nvidia and vfio-pci
-{ config, pkgs, lib, ... }:
+{ pkgs, ... }:
 
 {
   # Note: Kernel modules are loaded in hardware-configuration.nix (boot.initrd + boot.kernelModules)
   # This module provides utilities and ensures runtime VFIO support
-  
+
   # Utility to check IOMMU groups (essential for debugging passthrough)
   environment.systemPackages = with pkgs; [
     (writeShellScriptBin "iommu-groups" ''
@@ -16,13 +16,13 @@
         echo "Add to VM: -args '-device intel-iommu,intremap=on,caching-mode=on'"
         exit 1
       fi
-      
+
       for d in /sys/kernel/iommu_groups/*/devices/*; do
         n=$(basename $(dirname $(dirname $d)))
         echo "IOMMU Group $n: $(${pkgs.pciutils}/bin/lspci -nns "''${d##*/}")"
       done | sort -V
     '')
-    
+
     (writeShellScriptBin "gpu-driver-status" ''
       #!/usr/bin/env bash
       # Show current GPU driver bindings

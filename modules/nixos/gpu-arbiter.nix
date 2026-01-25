@@ -1,12 +1,17 @@
 # GPU Arbiter - Dynamic GPU switching between K3s AI workloads and Windows gaming VM
-# 
+#
 # Usage:
 #   gpu-arbiter status      - Show current GPU state
 #   gpu-arbiter claim 0     - Claim GPU 0 for gaming (stops AI, starts Windows VM)
 #   gpu-arbiter release 0   - Release GPU 0 back to AI (stops Windows VM)
 #
 # Requires host-specific config override in /etc/gpu-arbiter/config
-{ config, pkgs, lib, ... }:
+{
+  config,
+  pkgs,
+  lib,
+  ...
+}:
 
 let
   gpu-arbiter = pkgs.writeShellScriptBin "gpu-arbiter" ''
@@ -14,18 +19,20 @@ let
     set -euo pipefail
 
     # Paths and dependencies
-    export PATH="${lib.makeBinPath [ 
-      pkgs.coreutils 
-      pkgs.pciutils 
-      pkgs.kmod 
-      pkgs.libvirt 
-      pkgs.kubectl 
-      pkgs.jq 
-      pkgs.procps
-      pkgs.gnugrep
-      pkgs.gawk
-      config.boot.kernelPackages.nvidia_x11  # nvidia-smi
-    ]}:$PATH"
+    export PATH="${
+      lib.makeBinPath [
+        pkgs.coreutils
+        pkgs.pciutils
+        pkgs.kmod
+        pkgs.libvirt
+        pkgs.kubectl
+        pkgs.jq
+        pkgs.procps
+        pkgs.gnugrep
+        pkgs.gawk
+        config.boot.kernelPackages.nvidia_x11 # nvidia-smi
+      ]
+    }:$PATH"
 
     CONFIG_FILE="/etc/gpu-arbiter/config"
     if [[ -f "$CONFIG_FILE" ]]; then
@@ -231,20 +238,21 @@ let
     esac
   '';
 
-in {
+in
+{
   environment.systemPackages = [ gpu-arbiter ];
-  
+
   # Default placeholder config - MUST be overridden in host config
   environment.etc."gpu-arbiter/config" = {
     mode = "0640";
     text = ''
       # GPU Arbiter Configuration
       # Override this in your host configuration
-      
+
       declare -A GPU_PCI
       declare -A VM_NAMES
       NODE_NAME="$(hostname)"
-      
+
       # Example (override in host config):
       # GPU_PCI[0]="0000:06:00.0"
       # VM_NAMES[0]="windows-gaming"

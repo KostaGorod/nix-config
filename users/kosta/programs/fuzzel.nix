@@ -1,12 +1,11 @@
 # Fuzzel - Wayland application launcher / dmenu replacement
-{ pkgs, ... }:
-{
+_: {
   programs.fuzzel = {
     enable = true;
     settings = {
       main = {
         font = "monospace:size=7";
-        width = 100;  # wider to show more text
+        width = 100; # wider to show more text
         lines = 15;
         horizontal-pad = 15;
         vertical-pad = 10;

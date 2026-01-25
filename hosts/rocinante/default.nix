@@ -20,11 +20,13 @@ in
   ];
 
   # Boot menu label: use git commit info or "dirty" if uncommitted
-  system.nixos.label = let
-    # Get git info at build time
-    gitRev = if inputs.self ? shortRev then inputs.self.shortRev else "dirty";
-    gitDesc = if inputs.self ? lastModifiedDate then inputs.self.lastModifiedDate else "unknown";
-  in "${gitRev}-${gitDesc}";
+  system.nixos.label =
+    let
+      # Get git info at build time
+      gitRev = inputs.self.shortRev or "dirty";
+      gitDesc = inputs.self.lastModifiedDate or "unknown";
+    in
+    "${gitRev}-${gitDesc}";
 
   # Nix settings
   nix.settings.experimental-features = [

@@ -41,17 +41,16 @@
     #   inputs.nixpkgs.follows = "nixpkgs-unstable";
     # };
 
-
     ultimate-bug-scanner.url = "github:Dicklesworthstone/ultimate_bug_scanner";
   };
 
   outputs =
     inputs@{
-        self,
-        flake-parts,
-        nixpkgs,
-        ...
-      }:
+      self,
+      flake-parts,
+      nixpkgs,
+      ...
+    }:
     flake-parts.lib.mkFlake { inherit inputs; } {
       systems = [
         "x86_64-linux"
@@ -62,24 +61,22 @@
         inputs.treefmt-nix.flakeModule
       ];
 
-      perSystem =
-        _:
-        {
-          treefmt = {
-            projectRootFile = "flake.nix";
-            settings.excludes = [ "flakes/**" ];
-            programs = {
-              nixfmt.enable = true;
-              deadnix.enable = true;
-              statix.enable = true;
-            };
-          };
-
-          checks = {
-            # Only check the actual host build for now
-            rocinante-toplevel = self.nixosConfigurations.rocinante.config.system.build.toplevel;
+      perSystem = _: {
+        treefmt = {
+          projectRootFile = "flake.nix";
+          settings.excludes = [ "flakes/**" ];
+          programs = {
+            nixfmt.enable = true;
+            deadnix.enable = true;
+            statix.enable = true;
           };
         };
+
+        checks = {
+          # Only check the actual host build for now
+          rocinante-toplevel = self.nixosConfigurations.rocinante.config.system.build.toplevel;
+        };
+      };
 
       flake = {
         nixosConfigurations.rocinante = nixpkgs.lib.nixosSystem {

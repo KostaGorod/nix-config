@@ -69,7 +69,8 @@ in
     # Add opencode (with wrapper) to system packages
     environment.systemPackages = [
       opencode-wrapper
-    ] ++ lib.optionals (cfg.desktop.enable && cfg.desktop.package != null) [
+    ]
+    ++ lib.optionals (cfg.desktop.enable && cfg.desktop.package != null) [
       cfg.desktop.package
     ];
 

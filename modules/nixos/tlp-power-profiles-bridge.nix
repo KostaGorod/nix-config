@@ -7,7 +7,7 @@
 
 let
   cfg = config.services.tlp-power-profiles-bridge;
-  
+
   bridgePackage = pkgs.callPackage ../../packages/tlp-power-profiles-bridge { };
 in
 {
@@ -34,7 +34,10 @@ in
     systemd.services.tlp-power-profiles-bridge = {
       description = "TLP to power-profiles-daemon D-Bus Bridge";
       wantedBy = [ "multi-user.target" ];
-      after = [ "dbus.service" "tlp.service" ];
+      after = [
+        "dbus.service"
+        "tlp.service"
+      ];
       requires = [ "dbus.service" ];
 
       environment = {

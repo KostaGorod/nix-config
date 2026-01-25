@@ -1,4 +1,12 @@
-{ lib, rustPlatform, cliphist, rofi, wl-clipboard, zenity, makeWrapper }:
+{
+  lib,
+  rustPlatform,
+  cliphist,
+  rofi,
+  wl-clipboard,
+  zenity,
+  makeWrapper,
+}:
 
 rustPlatform.buildRustPackage {
   pname = "clipboard-picker";

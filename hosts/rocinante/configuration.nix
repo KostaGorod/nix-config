@@ -323,16 +323,16 @@ in
       #   enableWidevine = true;    # Optional
       # })
       (vivaldi.override {
-         commandLineArgs = [
-           "--ozone-platform=wayland"
-           "--disable-gpu-memory-buffer-video-frames" # stop spam for full gpu buffer, hotfix for chromium 126-130, hopefully fixed on 131: https://github.com/th-ch/youtube-music/pull/2519
-         ];
-         proprietaryCodecs = true; # Optional
-         enableWidevine = true; # Optional
-       })
-       gitkraken
-     ];
-   };
+        commandLineArgs = [
+          "--ozone-platform=wayland"
+          "--disable-gpu-memory-buffer-video-frames" # stop spam for full gpu buffer, hotfix for chromium 126-130, hopefully fixed on 131: https://github.com/th-ch/youtube-music/pull/2519
+        ];
+        proprietaryCodecs = true; # Optional
+        enableWidevine = true; # Optional
+      })
+      gitkraken
+    ];
+  };
 
   # Set the default editor to helix
   environment.variables.EDITOR = "hx";
@@ -510,8 +510,8 @@ in
   # Critical for CVE patching and vulnerability remediation
   system.autoUpgrade = {
     enable = true;
-    allowReboot = false;  # Manual reboot control required
-    dates = "weekly";     # Check for updates weekly
+    allowReboot = false; # Manual reboot control required
+    dates = "weekly"; # Check for updates weekly
   };
 
   # Optimising the NixOS store with automatic options. This will optimise the
