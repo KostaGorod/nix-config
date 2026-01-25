@@ -97,7 +97,6 @@
             ./modules/nixos/cliphist.nix
             ./modules/nixos/spotify.nix
             ./modules/nixos/moonlight-qt.nix
-            ./modules/nixos/tlp-power-profiles-bridge.nix
             inputs.vibe-kanban.nixosModules.default
             {
               services.vibe-kanban = {
