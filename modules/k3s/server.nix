@@ -21,8 +21,18 @@
       "--node-label=gpu-0-status=available"
     ];
     
-    # No custom containerd config needed - device plugin uses NVML for GPU discovery
-    # which doesn't require special containerd configuration
+    # Enable CDI support in containerd for GPU device injection
+    # NixOS nvidia-container-toolkit uses CDI (not nvidia-container-runtime)
+    containerdConfigTemplate = ''
+      # Base K3s containerd config
+      {{ template "base" . }}
+
+      # Enable CDI (Container Device Interface) for GPU access
+      # The nvidia-container-toolkit-cdi-generator service creates specs in /var/run/cdi
+      [plugins."io.containerd.grpc.v1.cri"]
+        enable_cdi = true
+        cdi_spec_dirs = ["/var/run/cdi", "/etc/cdi"]
+    '';
   };
 
   # Open ports for K3s
@@ -31,7 +41,7 @@
 
   # =============================================================================
   # NVIDIA Device Plugin for Kubernetes
-  # Uses NVML (nvidia-smi) for GPU discovery - works without special containerd config
+  # Uses CDI for device discovery (integrated with NixOS nvidia-container-toolkit)
   # =============================================================================
   services.k3s.manifests.nvidia-device-plugin = {
     target = "nvidia-device-plugin.yaml";
@@ -48,6 +58,7 @@
         template = {
           metadata.labels.name = "nvidia-device-plugin-ds";
           spec = {
+            # No runtimeClassName - use default runc with CDI for device injection
             tolerations = [
               { key = "nvidia.com/gpu"; operator = "Exists"; effect = "NoSchedule"; }
               { key = "gpu-0"; operator = "Exists"; effect = "NoExecute"; }
@@ -57,18 +68,20 @@
               name = "nvidia-device-plugin-ctr";
               image = "nvcr.io/nvidia/k8s-device-plugin:v0.17.0";
               env = [
-                # Use NVML (nvidia-smi) for device discovery
-                # This works without special containerd configuration
-                { name = "DEVICE_DISCOVERY_STRATEGY"; value = "nvml"; }
+                # Use CDI for device discovery - matches NixOS nvidia-container-toolkit
+                { name = "DEVICE_DISCOVERY_STRATEGY"; value = "cdi"; }
+                { name = "CDI_ROOT"; value = "/var/run/cdi"; }
                 { name = "FAIL_ON_INIT_ERROR"; value = "false"; }
               ];
               securityContext.privileged = true;
               volumeMounts = [
                 { name = "device-plugin"; mountPath = "/var/lib/kubelet/device-plugins"; }
+                { name = "cdi"; mountPath = "/var/run/cdi"; readOnly = true; }
               ];
             }];
             volumes = [
               { name = "device-plugin"; hostPath.path = "/var/lib/kubelet/device-plugins"; }
+              { name = "cdi"; hostPath.path = "/var/run/cdi"; }
             ];
           };
         };
