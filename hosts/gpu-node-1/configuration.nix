@@ -9,6 +9,7 @@
     ../../modules/nixos/vfio.nix
     ../../modules/nixos/libvirt.nix
     ../../modules/nixos/gpu-arbiter.nix
+    ../../modules/helicone/compose.nix
   ];
 
   # =============================================================================
@@ -85,6 +86,15 @@
       PermitRootLogin = "no";
       PasswordAuthentication = false;
     };
+  };
+
+  # Helicone LLM Observability (docker-compose)
+  services.helicone = {
+    enable = true;
+    hostName = "gpu-node-1";  # Tailscale hostname for self-hosted URLs
+    openFirewall = true;
+    # Generate proper secrets for production:
+    # secrets.betterAuthSecret = "$(openssl rand -hex 32)";
   };
 
   # =============================================================================
