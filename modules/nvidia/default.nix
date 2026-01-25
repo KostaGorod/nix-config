@@ -53,15 +53,16 @@
     mount-nvidia-executables = true;
   };
 
-  # The NixOS nvidia-container-toolkit module provides nvidia-container-toolkit-cdi-generator.service
-  # which generates /var/run/cdi/nvidia.yaml. However it may run before nvidia driver is loaded.
-  # Add retry logic since the driver might not be fully ready immediately after boot.
-  systemd.services.nvidia-container-toolkit-cdi-generator = {
-    after = [ "systemd-modules-load.service" ];
-    # Add retry - the driver might not be fully ready immediately
+  # Generate CDI spec on boot for nvidia-container-toolkit
+  # This creates /var/run/cdi/nvidia.yaml which the device plugin needs
+  systemd.services.nvidia-cdi-generator = {
+    description = "Generate NVIDIA CDI specification";
+    wantedBy = [ "multi-user.target" ];
+    after = [ "systemd-udev-settle.service" ];
     serviceConfig = {
-      Restart = "on-failure";
-      RestartSec = "5s";
+      Type = "oneshot";
+      RemainAfterExit = true;
+      ExecStart = "${pkgs.nvidia-container-toolkit}/bin/nvidia-ctk cdi generate --output=/var/run/cdi/nvidia.yaml";
     };
   };
 
