@@ -3,6 +3,7 @@
 {
   # =============================================================================
   # NVIDIA DRIVER CONFIGURATION
+  # For GPU compute (K3s AI workloads) with support for dynamic VFIO switching
   # =============================================================================
   
   # Enable OpenGL/Vulkan
@@ -11,44 +12,71 @@
     enable32Bit = true;
   };
 
-  # Load NVIDIA driver for Xorg and Wayland
-  services.xserver.videoDrivers = ["nvidia"];
+  # NOTE: services.xserver.videoDrivers is set to load the nvidia kernel module.
+  # This does NOT require X11/Wayland - it just ensures the nvidia driver loads
+  # for compute/container workloads. Works headless.
 
   hardware.nvidia = {
-    # Modesetting is required.
+    # Modesetting is required
     modesetting.enable = true;
 
-    # Nvidia power management. Experimental, and can cause sleep/suspend to fail.
-    # Enable this if you have graphical corruption issues or application crashes after waking
-    # up from sleep. This fixes it by saving the entire VRAM memory to /tmp/
+    # Power management OFF - we want predictable behavior for switching
     powerManagement.enable = false;
-
-    # Fine-grained power management. Turns off GPU when not in use.
-    # Experimental and only works on modern Nvidia GPUs (Turing or newer).
     powerManagement.finegrained = false;
 
-    # Use the NVidia open source kernel module (not to be confused with the
-    # independent third-party "nouveau" driver).
-    # Support is limited to the Turing and later architectures. Full support of
-    # GeForce and Workstation GPUs.
-    open = false;  # Use proprietary for better CUDA compatibility usually
+    # Use proprietary driver for best CUDA/compute compatibility
+    open = false;
 
-    # Enable the Nvidia settings menu,
-    # accessible via `nvidia-settings`.
-    nvidiaSettings = true;
+    # No GUI settings menu needed on a server/compute node
+    nvidiaSettings = false;
 
-    # Package choice: Stable or Beta or Production
+    # Production driver for stability
     package = config.boot.kernelPackages.nvidiaPackages.production;
   };
 
-  # Persistence mode should be OFF by default to allow unbinding
-  systemd.services.nvidia-persistenced = {
-    enable = false;
-  };
+  # =============================================================================
+  # NIXPKGS NVIDIA SETTINGS
+  # =============================================================================
+  nixpkgs.config.nvidia.acceptLicense = true;
   
-  # Ensure CUDA is available
+  # Load nvidia kernel driver (required for container-toolkit and K3s GPU access)
+  # NOTE: datacenter.enable is NOT needed for consumer GPUs (RTX 2070, 3080, 4090, etc.)
+  # Datacenter mode is only for Tesla, A100, H100 with NVLink/NVSwitch topologies
+  services.xserver.videoDrivers = [ "nvidia" ];
+
+  # =============================================================================
+  # NVIDIA CONTAINER TOOLKIT (for K3s GPU workloads)
+  # =============================================================================
+  hardware.nvidia-container-toolkit = {
+    enable = true;
+    # Mount nvidia devices into containers
+    mount-nvidia-executables = true;
+  };
+
+  # The NixOS nvidia-container-toolkit module provides nvidia-container-toolkit-cdi-generator.service
+  # which generates /var/run/cdi/nvidia.yaml. However it may run before nvidia driver is loaded.
+  # Add retry logic since the driver might not be fully ready immediately after boot.
+  systemd.services.nvidia-container-toolkit-cdi-generator = {
+    after = [ "systemd-modules-load.service" ];
+    # Add retry - the driver might not be fully ready immediately
+    serviceConfig = {
+      Restart = "on-failure";
+      RestartSec = "5s";
+    };
+  };
+
+  # =============================================================================
+  # PERSISTENCE MODE
+  # OFF by default to allow driver unbinding for VFIO switching
+  # When GPU is in "AI mode", we can optionally enable it for performance
+  # =============================================================================
+  systemd.services.nvidia-persistenced.enable = false;
+  
+  # =============================================================================
+  # PACKAGES
+  # =============================================================================
   environment.systemPackages = with pkgs; [
     cudaPackages.cudatoolkit
-    linuxPackages.nvidia_x11
+    nvtopPackages.full
   ];
 }
