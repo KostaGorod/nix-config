@@ -1,30 +1,21 @@
-# VM test utilities for NixOS configuration
-{
-  pkgs,
-  lib,
-  nixpkgs,
-  ...
-}:
+{ pkgs, lib, ... }:
 
 {
-  # Import and configure a NixOS VM test
-  mkVMTest =
-    testPath:
-    import (nixpkgs + "/nixos/tests/make-test-python.nix") (import testPath) {
-      inherit pkgs;
-      inherit (pkgs) system;
-    };
+  # Abstract: Run a simple boolean check and return a success derivation if true
+  # Use this for "close to source" logic validation without full evaluation
+  runTest =
+    name: condition:
+    if condition then pkgs.runCommand "test-${name}" { } "touch $out" else throw "Test failed: ${name}";
 
-  # Run multiple VM tests and combine results
-  mkVMTests =
-    testPaths:
-    lib.listToAttrs (
-      map (path: {
-        name = lib.removeSuffix ".nix" (builtins.baseNameOf path);
-        value = import (nixpkgs + "/nixos/tests/make-test-python.nix") (import path) {
-          inherit pkgs;
-          inherit (pkgs) system;
-        };
-      }) testPaths
-    );
+  # Helper to aggregate checks from multiple test files
+  mkChecks =
+    args: testFiles:
+    lib.foldl' (
+      acc: path:
+      let
+        name = lib.removeSuffix ".test.nix" (builtins.baseNameOf path);
+        testOutput = import path (args // { inherit name; });
+      in
+      acc // (lib.mapAttrs' (n: v: lib.nameValuePair "${name}-${n}" v) testOutput.checks)
+    ) { } testFiles;
 }
