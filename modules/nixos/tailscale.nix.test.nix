@@ -6,10 +6,7 @@
 }:
 
 let
-  module = import ./tailscale.nix {
-    inherit pkgs lib;
-    config = { };
-  };
+  module = import ./tailscale.nix { inherit pkgs lib; };
 in
 {
   checks = {

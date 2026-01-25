@@ -2,15 +2,11 @@
   pkgs,
   lib,
   tests,
-  inputs,
   ...
 }:
 
 let
-  module = import ../../profiles/workstation.nix {
-    inherit pkgs lib inputs;
-    config = { };
-  };
+  module = import ../../profiles/workstation.nix { inherit pkgs lib; };
 in
 {
   checks = {

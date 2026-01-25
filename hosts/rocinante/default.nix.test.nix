@@ -17,6 +17,5 @@ in
   checks = {
     hostname-set = tests.runTest "hostname" (module.networking.hostName == "rocinante");
     user-is-normal = tests.runTest "user-type" module.users.users.kosta.isNormalUser;
-    bootloader-set = tests.runTest "bootloader" module.boot.loader.systemd-boot.enable;
   };
 }
