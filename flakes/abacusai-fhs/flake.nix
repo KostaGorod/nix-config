@@ -5,7 +5,8 @@
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
   };
 
-  outputs = { self, nixpkgs }:
+  outputs =
+    { self, nixpkgs }:
     let
       system = "x86_64-linux";
       pkgs = import nixpkgs {
@@ -117,41 +118,48 @@
 
       abacusai-fhs = pkgs.buildFHSEnv {
         name = "abacusai";
-        targetPkgs = pkgs: commonDeps ++ [
-          abacusai-gui
-          abacusai-cli
-          pkgs.openssh
-          pkgs.git
-        ];
+        targetPkgs =
+          pkgs:
+          commonDeps
+          ++ [
+            abacusai-gui
+            abacusai-cli
+            pkgs.openssh
+            pkgs.git
+          ];
         runScript = "abacusai-app";
 
         extraInstallCommands = ''
-          mkdir -p $out/share/applications
-          cat > $out/share/applications/abacusai.desktop <<EOF
-[Desktop Entry]
-Type=Application
-Name=AbacusAI
-Comment=Abacus.AI DeepAgent desktop client
-Exec=abacusai %U
-Terminal=false
-Categories=Development;IDE;
-EOF
+                    mkdir -p $out/share/applications
+                    cat > $out/share/applications/abacusai.desktop <<EOF
+          [Desktop Entry]
+          Type=Application
+          Name=AbacusAI
+          Comment=Abacus.AI DeepAgent desktop client
+          Exec=abacusai %U
+          Terminal=false
+          Categories=Development;IDE;
+          EOF
         '';
       };
 
       abacusai-cli-fhs = pkgs.buildFHSEnv {
         name = "abacusai-cli";
-        targetPkgs = pkgs: commonDeps ++ [
-          abacusai-cli
-          pkgs.openssh
-          pkgs.git
-        ];
+        targetPkgs =
+          pkgs:
+          commonDeps
+          ++ [
+            abacusai-cli
+            pkgs.openssh
+            pkgs.git
+          ];
         runScript = "abacusai";
       };
 
-    in {
+    in
+    {
       packages.${system} = {
-        default = abacusai-fhs;
+        default = self.packages.${system}.gui;
         gui = abacusai-fhs;
         cli = abacusai-cli-fhs;
       };
@@ -159,11 +167,11 @@ EOF
       apps.${system} = {
         default = {
           type = "app";
-          program = "${abacusai-fhs}/bin/abacusai";
+          program = "${self.packages.${system}.gui}/bin/abacusai";
         };
         cli = {
           type = "app";
-          program = "${abacusai-cli-fhs}/bin/abacusai-cli";
+          program = "${self.packages.${system}.cli}/bin/abacusai-cli";
         };
       };
     };

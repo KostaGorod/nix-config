@@ -1,10 +1,10 @@
-{ config, pkgs, ... }:
+_:
 
 {
   services = {
     # Use Cosmic's display manager instead of SDDM
     displayManager.cosmic-greeter.enable = true;
-    
+
     # Enable Cosmic desktop environment
     desktopManager.cosmic.enable = true;
   };
