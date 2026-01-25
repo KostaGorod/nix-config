@@ -285,7 +285,9 @@ in
       # Antigravity IDE (Google AI-powered development environment)
       inputs.antigravity-fhs.packages.${pkgs.stdenv.hostPlatform.system}.default
       pkgs-unstable.uv
-      # Warp terminal
+      # Warp terminal with FHS environment for full system access
+      inputs.warp-fhs.packages.${pkgs.stdenv.hostPlatform.system}.default
+      # Native Warp terminal without FHS sandbox (allows normal sudo)
       warp-terminal
       _1password-gui
       firefox

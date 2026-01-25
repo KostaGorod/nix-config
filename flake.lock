@@ -340,6 +340,22 @@
     },
     "nixpkgs_7": {
       "locked": {
+        "lastModified": 1766309749,
+        "narHash": "sha256-3xY8CZ4rSnQ0NqGhMKAy5vgC+2IVK0NoVEzDoOh4DA4=",
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "a6531044f6d0bef691ea18d4d4ce44d0daa6e816",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nixos",
+        "ref": "nixos-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "nixpkgs_8": {
+      "locked": {
         "lastModified": 1766902085,
         "narHash": "sha256-coBu0ONtFzlwwVBzmjacUQwj3G+lybcZ1oeNSQkgC0M=",
         "owner": "nixos",
@@ -369,6 +385,7 @@
         "treefmt-nix": "treefmt-nix_2",
         "ultimate-bug-scanner": "ultimate-bug-scanner",
         "vibe-kanban": "vibe-kanban",
+        "warp-fhs": "warp-fhs",
         "zen-browser": "zen-browser"
       }
     },
@@ -475,10 +492,24 @@
       },
       "parent": []
     },
+    "warp-fhs": {
+      "inputs": {
+        "nixpkgs": "nixpkgs_7"
+      },
+      "locked": {
+        "path": "flakes/warp-fhs",
+        "type": "path"
+      },
+      "original": {
+        "path": "flakes/warp-fhs",
+        "type": "path"
+      },
+      "parent": []
+    },
     "zen-browser": {
       "inputs": {
         "home-manager": "home-manager_2",
-        "nixpkgs": "nixpkgs_7"
+        "nixpkgs": "nixpkgs_8"
       },
       "locked": {
         "lastModified": 1767763594,
