@@ -23,8 +23,6 @@
     
     # Configure containerd with nvidia runtime
     # K3s uses this template to generate containerd config
-    # NOTE: We use /run/current-system/sw/bin path which is always valid on NixOS
-    # The nvidia-container-runtime is added to systemPackages so it's available there
     containerdConfigTemplate = ''
       # Base K3s containerd config
       {{ template "base" . }}
@@ -33,7 +31,7 @@
       [plugins."io.containerd.grpc.v1.cri".containerd.runtimes."nvidia"]
         runtime_type = "io.containerd.runc.v2"
       [plugins."io.containerd.grpc.v1.cri".containerd.runtimes."nvidia".options]
-        BinaryName = "/run/current-system/sw/bin/nvidia-container-runtime"
+        BinaryName = "${pkgs.nvidia-container-toolkit}/bin/nvidia-container-runtime"
     '';
   };
   
@@ -105,7 +103,5 @@
     k3s 
     kubectl
     k9s
-    # nvidia-container-runtime must be in PATH for containerd to find it
-    nvidia-container-toolkit
   ];
 }
