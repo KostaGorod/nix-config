@@ -3,16 +3,10 @@
 # your system. Help is available in the configuration.nix(5) man page, on
 # https://search.nixos.org/options and in the NixOS manual (`nixos-help`).
 
-{
-  inputs,
-  config,
-  lib,
-  pkgs,
-  ...
-}:
+{ inputs, config, lib, pkgs, options, ... }:
 let
   pkgs-unstable = import inputs.nixpkgs-unstable {
-    inherit (pkgs.stdenv.hostPlatform) system;
+    system = pkgs.stdenv.hostPlatform.system;
     config.allowUnfree = true;
   };
 in
@@ -27,7 +21,7 @@ in
   #   # ... add any other networking-related modules you want to take from stable ...
   # ];
 
-  # 2. Import the networking modules from the stable nixpkgs
+    # 2. Import the networking modules from the stable nixpkgs
   imports = [
     ./hardware-configuration.nix # Include the results of the hardware scan.
     ../../modules/tailscale.nix # Tailscale configuration module
@@ -40,12 +34,10 @@ in
     #"${pkgs-stable.path}/nixos/modules/services/networking/networkmanager.nix"
     # "${pkgs-stable.path}/nixos/modules/services/networking/modemmanager.nix"
     # "${pkgs-stable.path}/nixos/modules/services/networking/wpa_supplicant.nix"
-  ];
+    ];
 
-  nix.settings.experimental-features = [
-    "nix-command"
-    "flakes"
-  ];
+
+  nix.settings.experimental-features = [ "nix-command" "flakes" ];
   #nix.channel.enable = true; # not sure if needed at all
   nix = {
     registry = lib.mapAttrs (_: value: { flake = value; }) inputs;
@@ -53,13 +45,11 @@ in
 
   };
   nixpkgs.config.allowUnfree = lib.mkForce true; # force allow unfree (if unfree is false by default)
-  nixpkgs.config.allowUnfreePredicate =
-    pkg:
-    builtins.elem (lib.getName pkg) [
-      "claude-code"
-      "droid"
-      # "codex" # temporarily disabled
-    ];
+  nixpkgs.config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [
+    "claude-code"
+    "droid"
+    # "codex" # temporarily disabled
+  ];
 
   # Bootloader.
   # Use the systemd-boot EFI boot loader.
@@ -69,17 +59,12 @@ in
   networking.hostName = "rocinante"; # hostname.
 
   networking.networkmanager = {
-    enable = true; # Easiest to use and most distros use this by default.
-    dns = "none"; # Use standalone dnsmasq.service from tailscale.nix module
-    plugins = [ pkgs.networkmanager-openvpn ]; # OpenVPN support in NetworkManager
+    enable = true;  # Easiest to use and most distros use this by default.
+    dns = "none";  # Use standalone dnsmasq.service from tailscale.nix module
+    plugins = [ pkgs.networkmanager-openvpn ];  # OpenVPN support in NetworkManager
   };
   # Unlock Integrated Modem
-  networking.modemmanager.fccUnlockScripts = [
-    {
-      id = "1eac:1001";
-      path = "${pkgs.modemmanager}/share/ModemManager/fcc-unlock.available.d/1eac:1001";
-    }
-  ];
+  networking.modemmanager.fccUnlockScripts = [ {id = "1eac:1001"; path = "${pkgs.modemmanager}/share/ModemManager/fcc-unlock.available.d/1eac:1001";} ];
   networking.timeServers = [ "timeserver.iix.net.il" ]; # Items in list seperated by space e.g.: [ "time.cloudflare.com" "time.example.com" ];
 
   # networking.dhcpcd.extraConfig = ''
@@ -98,6 +83,7 @@ in
   virtualisation.docker.enable = true;
   virtualisation.docker.package = pkgs.docker_28;
 
+
   # fwupdmgr for firmwares updates
   services.fwupd.enable = true;
 
@@ -115,15 +101,15 @@ in
 
     # Add additional locales
     extraLocaleSettings = {
-      LC_ADDRESS = "en_US.UTF-8";
-      LC_IDENTIFICATION = "en_US.UTF-8";
-      LC_MEASUREMENT = "en_US.UTF-8";
-      LC_MONETARY = "en_US.UTF-8";
-      LC_NAME = "en_US.UTF-8";
-      LC_NUMERIC = "en_US.UTF-8";
-      LC_PAPER = "en_US.UTF-8";
-      LC_TELEPHONE = "en_US.UTF-8";
-      LC_TIME = "en_IL";
+        LC_ADDRESS = "en_US.UTF-8";
+        LC_IDENTIFICATION = "en_US.UTF-8";
+        LC_MEASUREMENT = "en_US.UTF-8";
+        LC_MONETARY = "en_US.UTF-8";
+        LC_NAME = "en_US.UTF-8";
+        LC_NUMERIC = "en_US.UTF-8";
+        LC_PAPER = "en_US.UTF-8";
+        LC_TELEPHONE = "en_US.UTF-8";
+        LC_TIME = "en_IL";
     };
 
     # Generate the locales you need
@@ -135,11 +121,13 @@ in
 
   #copy current config into etc, this way I can restore config if current evaluation is broken, BEWARE it can contain secrets and such...
   # or just use git
-  environment.etc.current-nixos-config.source = ./.; # https://logs.nix.samueldr.com/nixos/2018-06-25#1529934995-1529935276;
+  environment.etc.current-nixos-config.source = ./.; #https://logs.nix.samueldr.com/nixos/2018-06-25#1529934995-1529935276;
+
 
   # Configure network proxy if necessary
   # networking.proxy.default = "http://user:password@proxy:port/";
   # networking.proxy.noProxy = "127.0.0.1,localhost,internal.domain";
+
 
   # Enable CUPS to print documents.
   services.printing = {
@@ -154,20 +142,19 @@ in
     browsing = true; # Enable printer browsing
     defaultShared = true; # Share all printers by default
   };
-  services.avahi = {
-    # Printers discovery (Apple streaming disabled)
+  services.avahi = { # Printers discovery (Apple streaming disabled)
     enable = true;
     nssmdns4 = true;
     openFirewall = true;
     # Disable Apple streaming/AirPlay features
     publish = {
-      enable = false; # Don't advertise this machine
+      enable = false;      # Don't advertise this machine
       userServices = false; # Don't publish user services (AirPlay receivers)
-      addresses = false; # Don't publish addresses
-      hinfo = false; # Don't publish hardware info
+      addresses = false;   # Don't publish addresses
+      hinfo = false;       # Don't publish hardware info
       workstation = false; # Don't publish workstation service
     };
-    reflector = false; # Don't reflect mDNS (used by AirPlay across subnets)
+    reflector = false;     # Don't reflect mDNS (used by AirPlay across subnets)
   };
   # Enable sound.
   # hardware.pulseaudio.enable = true;
@@ -182,55 +169,57 @@ in
       support32Bit = true;
     };
   };
-  security.rtkit.enable = true; # realtime scheduling priority to user processes on demand https://mynixos.com/nixpkgs/option/security.rtkit.enable
+security.rtkit.enable = true; # realtime scheduling priority to user processes on demand https://mynixos.com/nixpkgs/option/security.rtkit.enable
 
-  #enable audit #DISA-STIG
-  security.auditd.enable = true;
-  security.audit.enable = true;
+#enable audit #DISA-STIG
+security.auditd.enable = true;
+security.audit.enable = true;
 
-  services.locate = {
-    enable = true;
-    #localuser = null; # use root, idk why its called null here.
-    package = pkgs.plocate; # default is locate.
-    interval = "hourly"; # possible with plocate because it's fast (because incremental)
-  };
+services.locate = {
+enable = true;
+#localuser = null; # use root, idk why its called null here.
+package = pkgs.plocate; # default is locate.
+interval = "hourly"; # possible with plocate because it's fast (because incremental)
+};
 
-  # Power Management
-  services.power-profiles-daemon.enable = false; # doesn't work with TLP.
-  services.tlp = {
-    enable = true;
-    settings = {
-      CPU_SCALING_GOVERNOR_ON_AC = "performance";
-      CPU_SCALING_GOVERNOR_ON_BAT = "powersave";
+# Power Management
+services.power-profiles-daemon.enable = false; # doesn't work with TLP.
+services.tlp = {
+      enable = true;
+      settings = {
+        CPU_SCALING_GOVERNOR_ON_AC = "performance";
+        CPU_SCALING_GOVERNOR_ON_BAT = "powersave";
 
-      CPU_ENERGY_PERF_POLICY_ON_BAT = "power";
-      CPU_ENERGY_PERF_POLICY_ON_AC = "performance";
+        CPU_ENERGY_PERF_POLICY_ON_BAT = "power";
+        CPU_ENERGY_PERF_POLICY_ON_AC = "performance";
 
-      PLATFORM_PROFILE_ON_AC = "performance";
-      PLATFORM_PROFILE_ON_BAT = "low-power";
+        PLATFORM_PROFILE_ON_AC = "performance";
+        PLATFORM_PROFILE_ON_BAT = "low-power";
 
-      CPU_MIN_PERF_ON_AC = 0;
-      CPU_MAX_PERF_ON_AC = 100;
-      CPU_MIN_PERF_ON_BAT = 0;
-      CPU_MAX_PERF_ON_BAT = 20;
 
-      #Optional helps save long term battery health
-      START_CHARGE_THRESH_BAT0 = 40; # 40 and bellow it starts to charge
-      STOP_CHARGE_THRESH_BAT0 = 80; # 80 and above it stops charging
 
-      RUNTIME_PM_ON_AC = "on"; # Keep devices active (no suspend) on AC to prevent touchpad delay
-      RUNTIME_PM_ON_BAT = "auto";
+        CPU_MIN_PERF_ON_AC = 0;
+        CPU_MAX_PERF_ON_AC = 100;
+        CPU_MIN_PERF_ON_BAT = 0;
+        CPU_MAX_PERF_ON_BAT = 20;
+
+       #Optional helps save long term battery health
+       START_CHARGE_THRESH_BAT0 = 40; # 40 and bellow it starts to charge
+       STOP_CHARGE_THRESH_BAT0 = 80; # 80 and above it stops charging
+
+      RUNTIME_PM_ON_AC = "on" ; # Keep devices active (no suspend) on AC to prevent touchpad delay
+      RUNTIME_PM_ON_BAT = "auto" ;
 
       # USB_AUTOSUSPEND = 0;
       USB_DENYLIST = "0bda:8153"; # 17ef:*";
 
-      MEM_SLEEP_ON_AC = "deep"; # "s2idle";
+      MEM_SLEEP_ON_AC = "deep"; #"s2idle";
       MEM_SLEEP_ON_BAT = "deep";
 
-      RUNTIME_PM_DRIVER_DENYLIST = "mei_me nouveau xhci_hcd"; # mhi_pci_generic";
+      RUNTIME_PM_DRIVER_DENYLIST = "mei_me nouveau xhci_hcd"; #  mhi_pci_generic";
       # Driver denylist   = mei_me nouveau radeon #original
-    };
-  };
+      };
+};
 
   # set user's default shell system-wide (for all users)
   users.defaultUserShell = pkgs.bash;
@@ -274,12 +263,7 @@ in
   # Define a user account. Don't forget to set a password with ‘passwd’.
   users.users.kosta = {
     isNormalUser = true;
-    extraGroups = [
-      "wheel"
-      "networkmanager"
-      "docker"
-      "adbusers"
-    ]; # Enable 'sudo' for the user. # Enable manage access to NetworkManager
+    extraGroups = [ "wheel" "networkmanager" "docker" "adbusers" ]; # Enable 'sudo' for the user. # Enable manage access to NetworkManager
     shell = pkgs.bash;
     packages = with pkgs; [
       # Antigravity IDE (Google AI-powered development environment)
@@ -294,7 +278,7 @@ in
       kdePackages.kdeconnect-kde
       kdePackages.plasma-browser-integration
       pciutils
-      remmina # rdp client
+      remmina #rdp client
       code-cursor
       onlyoffice-desktopeditors
       #
@@ -317,9 +301,9 @@ in
         commandLineArgs = [
           "--ozone-platform=wayland"
           "--disable-gpu-memory-buffer-video-frames" # stop spam for full gpu buffer, hotfix for chromium 126-130, hopefully fixed on 131: https://github.com/th-ch/youtube-music/pull/2519
-        ];
+          ];
         proprietaryCodecs = true; # Optional
-        enableWidevine = true; # Optional
+        enableWidevine = true;    # Optional
       })
     ];
   };
@@ -329,8 +313,8 @@ in
 
   fonts.packages = with pkgs; [
     helvetica-neue-lt-std
-    fragment-mono # Helvetica Monospace Coding Font
-    aileron # Helvetica font in nine weights
+    fragment-mono #Helvetica Monospace Coding Font
+    aileron #Helvetica font in nine weights
 
   ];
   # List packages installed in system profile. To search, run:
@@ -341,21 +325,14 @@ in
       name = "antigravity";
       desktopName = "Antigravity IDE";
       comment = "Google Antigravity AI-powered development environment";
-      exec = "${
-        inputs.antigravity-fhs.packages.${pkgs.stdenv.hostPlatform.system}.default
-      }/bin/antigravity %U";
+      exec = "${inputs.antigravity-fhs.packages.${pkgs.stdenv.hostPlatform.system}.default}/bin/antigravity %U";
       icon = "code";
       terminal = false;
       type = "Application";
-      categories = [
-        "Development"
-        "IDE"
-      ];
+      categories = [ "Development" "IDE" ];
     })
     (writeShellScriptBin "antigravity" ''
-      exec ${
-        inputs.antigravity-fhs.packages.${pkgs.stdenv.hostPlatform.system}.default
-      }/bin/antigravity "$@"
+      exec ${inputs.antigravity-fhs.packages.${pkgs.stdenv.hostPlatform.system}.default}/bin/antigravity "$@"
     '')
 
     # Shells
@@ -389,8 +366,8 @@ in
     easyeffects
     teamviewer
     # (zed-editor.fhsWithPackages (pkgs: [ pkgs.zlib ])) # zed missing zlib to work is expected https://github.com/xhyrom/zed-discord-presence/issues/12
-    (python312.withPackages (
-      ps: with ps; [
+    (python312.withPackages (ps:
+      with ps; [
         ipython
         bpython
         #pandas
@@ -415,6 +392,7 @@ in
   programs.steam = {
     enable = true;
   };
+
 
   # Some programs need SUID wrappers, can be configured further or are
   # started in user sessions.

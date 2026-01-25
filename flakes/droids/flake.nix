@@ -5,18 +5,13 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
   };
 
-  outputs =
-    { self, nixpkgs }:
+  outputs = { self, nixpkgs }:
     let
-      systems = [
-        "x86_64-linux"
-        "aarch64-linux"
-      ];
+      systems = [ "x86_64-linux" "aarch64-linux" ];
       forAllSystems = nixpkgs.lib.genAttrs systems;
     in
     {
-      packages = forAllSystems (
-        system:
+      packages = forAllSystems (system:
         let
           pkgs = import nixpkgs {
             inherit system;
@@ -84,24 +79,23 @@
           droid-wrapper = pkgs.buildFHSEnv {
             name = "droid";
 
-            targetPkgs =
-              pkgs: with pkgs; [
-                # Core dependencies
-                curl
-                git
-                gnused
-                gawk
-                coreutils
-                findutils
+            targetPkgs = pkgs: with pkgs; [
+              # Core dependencies
+              curl
+              git
+              gnused
+              gawk
+              coreutils
+              findutils
 
-                # For browser opening (Linux requirement)
-                xdg-utils
+              # For browser opening (Linux requirement)
+              xdg-utils
 
-                # Common development tools that might be needed
-                nodejs
-                python3
-                gcc
-              ];
+              # Common development tools that might be needed
+              nodejs
+              python3
+              gcc
+            ];
 
             runScript = pkgs.writeShellScript "droid-run" ''
               # Set up Factory environment
@@ -122,10 +116,7 @@
               description = "FactoryAI Droids - AI Coding Agents CLI";
               homepage = "https://factory.ai";
               license = licenses.unfree;
-              platforms = [
-                "x86_64-linux"
-                "aarch64-linux"
-              ];
+              platforms = [ "x86_64-linux" "aarch64-linux" ];
             };
           };
 

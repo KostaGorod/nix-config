@@ -1,16 +1,9 @@
-{
-  config,
-  lib,
-  pkgs,
-  inputs,
-  ...
-}:
+{ config, lib, pkgs, inputs, ... }:
 
 let
   cfg = config.programs.abacusai;
   abacusai-pkgs = inputs.abacusai-fhs.packages.${pkgs.stdenv.hostPlatform.system};
-in
-{
+in {
   options.programs.abacusai = {
     enable = lib.mkEnableOption "Abacus.AI DeepAgent desktop client and CLI";
 
@@ -34,3 +27,4 @@ in
     ];
   };
 }
+

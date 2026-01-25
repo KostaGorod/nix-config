@@ -5,13 +5,9 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
   };
 
-  outputs =
-    { self, nixpkgs }:
+  outputs = { self, nixpkgs }:
     let
-      systems = [
-        "x86_64-linux"
-        "aarch64-linux"
-      ];
+      systems = [ "x86_64-linux" "aarch64-linux" ];
       forAllSystems = nixpkgs.lib.genAttrs systems;
 
       version = "0.0.143";
@@ -30,8 +26,7 @@
         };
       };
 
-      mkPackage =
-        pkgs: system:
+      mkPackage = pkgs: system:
         let
           info = platformInfo.${system};
 
@@ -40,7 +35,7 @@
 
             src = pkgs.fetchurl {
               url = "${baseUrl}/${info.platform}/vibe-kanban.zip";
-              inherit (info) sha256;
+              sha256 = info.sha256;
             };
 
             nativeBuildInputs = [ pkgs.unzip ];
@@ -58,19 +53,18 @@
         pkgs.buildFHSEnv {
           name = "vibe-kanban";
 
-          targetPkgs =
-            pkgs: with pkgs; [
-              curl
-              git
-              gnused
-              gawk
-              coreutils
-              findutils
-              xdg-utils
-              nodejs
-              python3
-              gcc
-            ];
+          targetPkgs = pkgs: with pkgs; [
+            curl
+            git
+            gnused
+            gawk
+            coreutils
+            findutils
+            xdg-utils
+            nodejs
+            python3
+            gcc
+          ];
 
           runScript = pkgs.writeShellScript "vibe-kanban-run" ''
             exec ${vibe-kanban-binary}/bin/vibe-kanban "$@"
@@ -80,17 +74,13 @@
             description = "Vibe Kanban - Visual project management for AI coding agents";
             homepage = "https://vibekanban.com";
             license = licenses.asl20;
-            platforms = [
-              "x86_64-linux"
-              "aarch64-linux"
-            ];
+            platforms = [ "x86_64-linux" "aarch64-linux" ];
             mainProgram = "vibe-kanban";
           };
         };
     in
     {
-      packages = forAllSystems (
-        system:
+      packages = forAllSystems (system:
         let
           pkgs = import nixpkgs {
             inherit system;
@@ -111,13 +101,7 @@
       });
 
       # NixOS module for systemd service
-      nixosModules.default =
-        {
-          config,
-          lib,
-          pkgs,
-          ...
-        }:
+      nixosModules.default = { config, lib, pkgs, ... }:
         let
           cfg = config.services.vibe-kanban;
           pkg = mkPackage pkgs pkgs.stdenv.hostPlatform.system;
@@ -185,8 +169,8 @@
                 NoNewPrivileges = true;
                 ProtectSystem = "strict";
                 ProtectHome = false;
-                ReadWritePaths = [
-                  cfg.dataDir
+                ReadWritePaths = [ 
+                  cfg.dataDir 
                   "/home/${cfg.user}/.vibe-kanban"
                   "/home/${cfg.user}/.config/vibe-kanban"
                   "/home/${cfg.user}/.local/share/vibe-kanban"

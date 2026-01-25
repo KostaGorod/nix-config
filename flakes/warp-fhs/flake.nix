@@ -5,77 +5,73 @@
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
   };
 
-  outputs =
-    { self, nixpkgs }:
+  outputs = { self, nixpkgs }:
     let
       system = "x86_64-linux";
       pkgs = import nixpkgs {
         inherit system;
         config.allowUnfree = true;
       };
-    in
-    {
+    in {
       packages.${system} = {
         default = pkgs.buildFHSEnv {
           name = "warp-terminal";
 
-          targetPkgs =
-            pkgs: with pkgs; [
-              # Core Warp package
-              warp-terminal
+          targetPkgs = pkgs: with pkgs; [
+            # Core Warp package
+            warp-terminal
 
-              # Shells
-              bash
-              zsh
-              fish
-              nushell
+            # Shells
+            bash
+            zsh
+            fish
+            nushell
 
-              # Core utilities that Warp needs
-              coreutils
-              findutils
-              gnugrep
-              gnused
-              gawk
-              util-linux
+            # Core utilities that Warp needs
+            coreutils
+            findutils
+            gnugrep
+            gnused
+            gawk
+            util-linux
 
-              # System tools
-              sudo
-              shadow # for su and other user management
-              procps
-              psmisc
+            # System tools
+            sudo
+            shadow # for su and other user management
+            procps
+            psmisc
 
-              # Development tools
-              git
-              openssh
-              curl
-              wget
+            # Development tools
+            git
+            openssh
+            curl
+            wget
 
-              # SSL/TLS certificates
-              cacert
-              openssl
+            # SSL/TLS certificates
+            cacert
+            openssl
 
-              # Terminal utilities
-              ncurses
-              less
-              man
-              which
-              file
-              tree
+            # Terminal utilities
+            ncurses
+            less
+            man
+            which
+            file
+            tree
 
-              # For proper terminal operation
-              glibc
-              gcc
-              binutils
+            # For proper terminal operation
+            glibc
+            gcc
+            binutils
 
-              # Locale support
-              glibcLocales
-            ];
+            # Locale support
+            glibcLocales
+          ];
 
           # Additional packages that might be needed
-          multiPkgs =
-            pkgs: with pkgs; [
-              # Add 32-bit support if needed
-            ];
+          multiPkgs = pkgs: with pkgs; [
+            # Add 32-bit support if needed
+          ];
 
           runScript = "warp-terminal";
 
