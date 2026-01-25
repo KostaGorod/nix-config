@@ -32,7 +32,7 @@ in
     ./hardware-configuration.nix # Include the results of the hardware scan.
     ../../modules/tailscale.nix # Tailscale configuration module
     ../../modules/nixos/nix-ld.nix # nix-ld for dynamic binary support (uv, python venvs)
-    ../../modules/nixos/opencode.nix # OpenCode AI coding agent
+    ../../modules/opencode.nix # OpenCode AI coding agent
     ../../modules/claude-code.nix # Claude Code CLI
     # ../../modules/codex.nix # Numtide Codex AI assistant (temporarily disabled)
     ../../modules/bitwarden.nix # Bitwarden password manager (unstable)
