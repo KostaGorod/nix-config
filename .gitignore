@@ -1,6 +1,11 @@
 # Secrets - never commit these!
 .config/nixos-secrets/
 
+# Age private keys - NEVER commit!
+# (Encrypted .age files in secrets/ ARE safe to commit)
+**/keys.txt
+**/*.age.key
+
 # Nix build results
 result
 result-*

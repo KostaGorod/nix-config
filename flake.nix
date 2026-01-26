@@ -42,6 +42,11 @@
     # };
 
     ultimate-bug-scanner.url = "github:Dicklesworthstone/ultimate_bug_scanner";
+
+    agenix = {
+      url = "github:ryantm/agenix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -86,6 +91,8 @@
             ./hosts/rocinante
             ./hosts/rocinante/disko-config.nix
             inputs.disko.nixosModules.disko
+            inputs.agenix.nixosModules.default
+            ./modules/nixos/secrets.nix
             ./profiles/workstation.nix
             ./de/plasma6.nix
             # inputs.cosmic-unstable.nixosModules.default
@@ -121,6 +128,8 @@
           modules = [
             ./hosts/gpu-node-1/configuration.nix
             inputs.disko.nixosModules.disko
+            inputs.agenix.nixosModules.default
+            ./modules/nixos/secrets.nix
             ./hosts/gpu-node-1/disko-config.nix
             ./hosts/gpu-node-1/hardware-configuration.nix
           ];
