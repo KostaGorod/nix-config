@@ -151,13 +151,19 @@ in
 
     # services.mem0 configuration (systemd service)
     (lib.mkIf svcCfg.enable {
-      # Ensure uv is available
+      # Dedicated service account for mem0
+      users.users.mem0 = {
+        isSystemUser = true;
+        group = "mem0";
+        description = "Mem0 AI memory service";
+      };
+      users.groups.mem0 = {};
+
       environment.systemPackages = [ pkgs-unstable.uv ];
 
-      # Create data directory
       systemd.tmpfiles.rules = [
-        "d ${svcCfg.dataDir} 0755 root root -"
-        "d ${svcCfg.dataDir}/qdrant 0755 root root -"
+        "d ${svcCfg.dataDir} 0750 mem0 mem0 -"
+        "d ${svcCfg.dataDir}/qdrant 0750 mem0 mem0 -"
       ];
 
       # Systemd service for Mem0 MCP server
@@ -180,11 +186,36 @@ in
           Type = "simple";
           Restart = "on-failure";
           RestartSec = "5s";
+          User = "mem0";
+          Group = "mem0";
+
+          # Secrets via LoadCredential (not env vars) - readable at $CREDENTIALS_DIRECTORY/
+          LoadCredential = lib.optionals (svcCfg.embedder.apiKeyFile != null) [
+            "embedder-api-key:${svcCfg.embedder.apiKeyFile}"
+          ] ++ lib.optionals (svcCfg.llm.apiKeyFile != null) [
+            "llm-api-key:${svcCfg.llm.apiKeyFile}"
+          ];
+
+          # Hardening
           NoNewPrivileges = true;
           ProtectSystem = "strict";
           ProtectHome = true;
-          ReadWritePaths = [ svcCfg.dataDir ];
           PrivateTmp = true;
+          PrivateDevices = true;
+          ProtectKernelTunables = true;
+          ProtectKernelModules = true;
+          ProtectKernelLogs = true;
+          ProtectControlGroups = true;
+          ProtectClock = true;
+          RestrictRealtime = true;
+          RestrictSUIDSGID = true;
+          MemoryDenyWriteExecute = true;
+          LockPersonality = true;
+          RestrictNamespaces = true;
+          RestrictAddressFamilies = [ "AF_INET" "AF_INET6" "AF_UNIX" ];
+          ReadWritePaths = [ svcCfg.dataDir ];
+          SystemCallArchitectures = "native";
+          SystemCallFilter = [ "@system-service" "~@privileged" "~@resources" ];
         };
 
         script = let
@@ -196,10 +227,10 @@ in
                      else "";
         in ''
           ${lib.optionalString (svcCfg.embedder.apiKeyFile != null && embedderKeyEnv != "") ''
-            export ${embedderKeyEnv}="$(cat ${svcCfg.embedder.apiKeyFile})"
+            export ${embedderKeyEnv}="$(cat "$CREDENTIALS_DIRECTORY/embedder-api-key")"
           ''}
           ${lib.optionalString (svcCfg.llm.apiKeyFile != null && llmKeyEnv != "") ''
-            export ${llmKeyEnv}="$(cat ${svcCfg.llm.apiKeyFile})"
+            export ${llmKeyEnv}="$(cat "$CREDENTIALS_DIRECTORY/llm-api-key")"
           ''}
           exec ${pkgs-unstable.uv}/bin/uvx mem0-mcp --transport sse --host ${svcCfg.host} --port ${toString svcCfg.port}
         '';
