@@ -17,6 +17,7 @@ in
   imports = [
     ./hardware-configuration.nix
     ../../modules/nixos/fingerprint.nix
+    ../../modules/nixos/yubikey.nix
     ./configuration.nix
   ];
 
@@ -74,6 +75,7 @@ in
   # Hardware
   hardware.bluetooth.enable = true;
   hardware.fingerprint.enable = true; # Fingerprint authentication for sudo/polkit/login
+  hardware.yubikey.enable = true; # FIDO2 support (libfido2 for SSH *-sk keys)
   hardware.logitech.wireless.enable = true;
   hardware.logitech.wireless.enableGraphical = true;
   hardware.graphics = {
