@@ -26,11 +26,21 @@
       mode = "0400";
     };
 
-    # Add more secrets as needed:
-    # github-token = {
-    #   file = ../../secrets/github-token.age;
-    #   path = "/run/secrets/github-token";
-    #   mode = "0400";
+     # Add more secrets as needed:
+     github-action-token = {
+       file = ../../secrets/github-action-token.age;
+       path = "/run/secrets/github-action-token";
+       owner = "root";
+       group = "root";
+       mode = "0400";
+     };
+    # give secret to service as a different user
+    # age.secrets.some-secret = {
+    # file = ../../secrets/some-secret.age;
+    # path = "/run/secrets/some-secret";
+    # owner = "myservice";  # the user running the service
+    # group = "myservice";
+    # mode = "0400";
     # };
   };
 }
