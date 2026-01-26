@@ -6,7 +6,6 @@
 #   User key:  cat ~/.ssh/id_ed25519.pub
 let
   # Host SSH public keys (from /etc/ssh/ssh_host_ed25519_key.pub)
-  # TODO: Replace with actual keys after running: cat /etc/ssh/ssh_host_ed25519_key.pub
   rocinante = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMWNLmrawXcnqlEYu7didRGN+OvKlQy+fnV+oYD3tzzR";
   gpu-node-1 = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOXf9Q8jJ6iRak+MEuJ29QMn273k2PBSrX7tckxsDr3z";
 
@@ -20,11 +19,10 @@ let
   all = allHosts ++ allUsers;
 in
 {
-  # API keys for mem0 service
-  "voyage-api-key.age".publicKeys = all;
-  "anthropic-api-key.age".publicKeys = all;
+  # API keys for mem0 service (paths from repo root)
+  "secrets/voyage-api-key.age".publicKeys = all;
+  "secrets/anthropic-api-key.age".publicKeys = all;
 
   # Add more secrets as needed:
-  # "github-token.age".publicKeys = all;
-  # "openai-api-key.age".publicKeys = all;
+  # "secrets/github-token.age".publicKeys = all;
 }
