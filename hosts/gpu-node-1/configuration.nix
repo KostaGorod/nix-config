@@ -100,19 +100,43 @@
   # =============================================================================
   # USERS
   # =============================================================================
-  users.users.kosta = {
-    isNormalUser = true;
-    extraGroups = [
+  # Tailscale SSH users - mapped via localpart:*@github.com
+  # KostaGorod@github.com -> kostagorod
+  # Gonya990@github.com -> gonya990
+
+  # Base groups for GPU node users
+  users.users = let
+    gpuUserGroups = [
       "wheel"
       "docker"
       "video"
       "render"
       "libvirtd"
     ];
-    openssh.authorizedKeys.keys = [
-      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFtkgXu/YbIS0vS4D/gZwejFfTs5JgnzuC8mJ7458M8/ kosta@rocinante"
-    ];
-    hashedPassword = "$6$DEZMi88WK4aKrWfc$HNdlAblj5.KRkmizg6fffuDexQmYGLewdmiu1w1FtBRSWvQs9BSfGCv8wIJ8bive3ZSCdGW11qo4YX6dTgmPQ1";
+  in {
+    # Primary admin user (existing)
+    kosta = {
+      isNormalUser = true;
+      extraGroups = gpuUserGroups;
+      openssh.authorizedKeys.keys = [
+        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFtkgXu/YbIS0vS4D/gZwejFfTs5JgnzuC8mJ7458M8/ kosta@rocinante"
+      ];
+      hashedPassword = "$6$DEZMi88WK4aKrWfc$HNdlAblj5.KRkmizg6fffuDexQmYGLewdmiu1w1FtBRSWvQs9BSfGCv8wIJ8bive3ZSCdGW11qo4YX6dTgmPQ1";
+    };
+
+    # Tailscale SSH user: KostaGorod@github.com -> kostagorod
+    kostagorod = {
+      isNormalUser = true;
+      extraGroups = gpuUserGroups;
+      # Auth handled by Tailscale SSH - no password or SSH keys needed
+    };
+
+    # Tailscale SSH user: Gonya990@github.com -> gonya990
+    gonya990 = {
+      isNormalUser = true;
+      extraGroups = gpuUserGroups;
+      # Auth handled by Tailscale SSH - no password or SSH keys needed
+    };
   };
 
   # Allow wheel group to sudo without password (optional, for convenience)
@@ -162,11 +186,11 @@
 
   # =============================================================================
   # GPU ARBITER ACCESS CONTROL
-  # Only kosta can run gpu-arbiter (requires sudo)
+  # All GPU node users can run gpu-arbiter (requires sudo)
   # =============================================================================
   security.sudo.extraRules = [
     {
-      users = [ "kosta" ];
+      users = [ "kosta" "kostagorod" "gonya990" ];
       commands = [
         {
           command = "${pkgs.libvirt}/bin/virsh *";
