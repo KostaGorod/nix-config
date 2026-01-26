@@ -1,36 +1,32 @@
 # System services module
 # Printing, audio, power management, firmware updates
-{ pkgs, ... }:
+{ pkgs, lib, ... }:
 {
   # Firmware updates
   services.fwupd.enable = true;
 
-  # Printing
+  # Printing (workstation defaults - hosts add drivers and can override)
   services.printing = {
     enable = true;
-    drivers = [
-      pkgs.hplip
-      pkgs.pantum-driver
-    ];
-    listenAddresses = [ "*:631" ];
-    allowFrom = [ "all" ];
-    browsing = true;
-    defaultShared = true;
+    listenAddresses = lib.mkDefault [ "*:631" ];
+    allowFrom = lib.mkDefault [ "all" ];
+    browsing = lib.mkDefault true;
+    defaultShared = lib.mkDefault true;
   };
 
-  # Printer discovery (mDNS)
+  # Printer discovery (mDNS) - defaults, hosts can override
   services.avahi = {
-    enable = true;
-    nssmdns4 = true;
-    openFirewall = true;
+    enable = lib.mkDefault true;
+    nssmdns4 = lib.mkDefault true;
+    openFirewall = lib.mkDefault true;
     publish = {
-      enable = false;
-      userServices = false;
-      addresses = false;
-      hinfo = false;
-      workstation = false;
+      enable = lib.mkDefault false;
+      userServices = lib.mkDefault false;
+      addresses = lib.mkDefault false;
+      hinfo = lib.mkDefault false;
+      workstation = lib.mkDefault false;
     };
-    reflector = false;
+    reflector = lib.mkDefault false;
   };
 
   # Audio (PipeWire)
