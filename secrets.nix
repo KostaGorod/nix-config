@@ -11,11 +11,11 @@ let
 
   # User SSH public keys (from ~/.ssh/id_ed25519.pub)
   # TODO: Replace with actual key after running: cat ~/.ssh/id_ed25519.pub
-  kosta = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI_REPLACE_WITH_KOSTA_USER_KEY";
+  # kosta = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI_REPLACE_WITH_KOSTA_USER_KEY";
 
   # Key groups
   allHosts = [ rocinante gpu-node-1 ];
-  allUsers = [ kosta ];
+  allUsers = [  ];
   all = allHosts ++ allUsers;
 in
 {
