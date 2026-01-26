@@ -103,7 +103,7 @@ in
 
   # System settings
   systemd.targets.hibernate.enable = false;
-  users.defaultUserShell = pkgs.bash;
+  programs.fish.enable = true;
   environment.etc.current-nixos-config.source = ./.;
   environment.variables.EDITOR = "hx";
   environment.sessionVariables = {

@@ -106,10 +106,6 @@ in
 
   # '';
 
-  # Virtualization
-  virtualisation.docker.enable = true;
-  virtualisation.docker.package = pkgs.docker_28;
-
   # fwupdmgr for firmwares updates
   services.fwupd.enable = true;
 
@@ -153,22 +149,19 @@ in
   # networking.proxy.default = "http://user:password@proxy:port/";
   # networking.proxy.noProxy = "127.0.0.1,localhost,internal.domain";
 
-  # Enable CUPS to print documents.
+  # Enable CUPS - host-specific drivers, localhost only
   services.printing = {
-    enable = true;
     drivers = [
       pkgs.hplip
       pkgs.pantum-driver
     ];
-    # Restrict to LAN only (192.168.190.130)
-    listenAddresses = [ "192.168.190.130:631" ];
-    allowFrom = [ "192.168.190.0/24" ]; # Allow from LAN subnet only
-    browsing = true; # Enable printer browsing
-    defaultShared = false; # Do not share by default
+    listenAddresses = [ "localhost:631" ];
+    allowFrom = [ "localhost" ];
+    defaultShared = false;
   };
   services.avahi = {
     # Printers discovery (Apple streaming disabled)
-    enable = false;
+    enable = lib.mkForce false;
     nssmdns4 = false;
     openFirewall = false;
     # Disable Apple streaming/AirPlay features
@@ -201,12 +194,7 @@ in
   security.auditd.enable = true;
   security.audit.enable = true;
 
-  services.locate = {
-    enable = true;
-    #localuser = null; # use root, idk why its called null here.
-    package = pkgs.plocate; # default is locate.
-    interval = "hourly"; # possible with plocate because it's fast (because incremental)
-  };
+
 
   # Power Management
   services.power-profiles-daemon.enable = false; # doesn't work with TLP.
@@ -246,7 +234,7 @@ in
   };
 
   # set user's default shell system-wide (for all users)
-  users.defaultUserShell = pkgs.bash;
+  users.defaultUserShell = pkgs.fish;
 
   programs.adb.enable = true;
 
@@ -297,13 +285,6 @@ in
 
   # Enable Bitwarden password manager (from nixpkgs-unstable)
   programs.bitwarden.enable = true;
-
-  # Enable direnv with nix-direnv integration (from unstable)
-  programs.direnv = {
-    enable = true;
-    package = pkgs-unstable.direnv;
-    nix-direnv.enable = true;
-  };
 
   # Define a user account. Don't forget to set a password with ‘passwd’.
   users.users.kosta = {
