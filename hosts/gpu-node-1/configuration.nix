@@ -43,7 +43,7 @@
     firewall = {
       enable = true;
       allowedTCPPorts = [
-        22 # SSH
+        22 # SSH (fallback when Tailscale unavailable)
         6443 # K3s API server
         10250 # Kubelet
         2379 # etcd client
@@ -79,14 +79,22 @@
   # SERVICES
   # =============================================================================
 
-  # SSH
+  # SSH - Tailscale SSH handles authentication, OpenSSH only listens on tailscale0
   services.openssh = {
     enable = true;
+    listenAddresses = [
+      { addr = "0.0.0.0"; port = 22; }  # Needed for initial setup, can be restricted later
+    ];
     settings = {
       PermitRootLogin = "no";
       PasswordAuthentication = false;
     };
   };
+
+  # Tailscale SSH - takes over SSH authentication via Tailscale identity
+  services.tailscale.extraSetFlags = [
+    "--ssh"
+  ];
 
   # Helicone LLM Observability (docker-compose)
   services.helicone = {
@@ -118,6 +126,7 @@
     kosta = {
       isNormalUser = true;
       extraGroups = gpuUserGroups;
+      shell = pkgs.fish;
       openssh.authorizedKeys.keys = [
         "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFtkgXu/YbIS0vS4D/gZwejFfTs5JgnzuC8mJ7458M8/ kosta@rocinante"
       ];
@@ -128,6 +137,7 @@
     kostagorod = {
       isNormalUser = true;
       extraGroups = gpuUserGroups;
+      shell = pkgs.fish;
       # Auth handled by Tailscale SSH - no password or SSH keys needed
     };
 
@@ -145,6 +155,9 @@
   # =============================================================================
   # PACKAGES
   # =============================================================================
+  # Enable fish shell (required for users with fish as default shell)
+  programs.fish.enable = true;
+
   environment.systemPackages = with pkgs; [
     vim
     git
