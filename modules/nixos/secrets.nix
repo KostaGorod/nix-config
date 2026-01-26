@@ -27,9 +27,9 @@
     };
 
      # Add more secrets as needed:
-     github-action-token = {
-       file = ../../secrets/github-action-token.age;
-       path = "/run/secrets/github-action-token";
+     github-runner-token = {
+       file = ../../secrets/github-runner-token.age;
+       path = "/run/secrets/github-runner-token";
        owner = "root";
        group = "root";
        mode = "0400";

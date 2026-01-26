@@ -24,7 +24,7 @@ in
   # API keys for mem0 service (paths from repo root)
   "secrets/voyage-api-key.age".publicKeys = all;
   "secrets/anthropic-api-key.age".publicKeys = all;
-  "secrets/github-action-token.age".publicKeys = adminHosts ++ [ gpu-node-1 ]; # unique token for each host
+  "secrets/github-runner-token.age".publicKeys = adminHosts ++ [ gpu-node-1 ]; # unique token for each host
   # Add more secrets as needed:
   # "secrets/github-token.age".publicKeys = all;
 }
