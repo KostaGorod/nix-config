@@ -3,7 +3,15 @@
 { config, lib, ... }:
 
 {
-  age.identityPaths = [ "/etc/ssh/ssh_host_ed25519_key" ];
+  # Host-specific identity paths for agenix
+  # rocinante: user's secrets management key (no SSH host key exists)
+  # gpu-node-1: standard SSH host key
+  age.identityPaths = if config.networking.hostName == "rocinante"
+    then [ "/home/kosta/.ssh/id_ed25519_secrets_management" ]
+    else [ "/etc/ssh/ssh_host_ed25519_key" ];
+
+  # Symlink /run/agenix to /run/secrets for conventional path
+  age.secretsDir = "/run/secrets";
 
   age.secrets = {
     voyage-api-key = {
