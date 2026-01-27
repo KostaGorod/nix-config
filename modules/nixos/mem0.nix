@@ -135,16 +135,11 @@ in
       environment.systemPackages = [
         pkgs-unstable.uv
       ] ++ lib.optionals cfg.enableMcpServer [
-        # Wrapper script for self-hosted mem0 MCP server
         (pkgs.writeShellScriptBin "mem0-mcp-server" ''
-          # Mem0 MCP Server - Self-hosted mode
-          # Uses local Qdrant for vector storage
-
           export MEM0_DATA_DIR="''${MEM0_DATA_DIR:-$HOME/.local/share/mem0}"
           export MEM0_DEFAULT_USER_ID="''${MEM0_DEFAULT_USER_ID:-${cfg.userId}}"
 
-          # Run mem0 MCP server via uvx
-          exec ${pkgs-unstable.uv}/bin/uvx mem0-mcp "$@"
+          exec ${pkgs-unstable.uv}/bin/uv run --with mem0ai --with "mcp[cli]" --with pydantic ${./mem0/server.py} "$@"
         '')
       ];
     })
@@ -164,6 +159,8 @@ in
       systemd.tmpfiles.rules = [
         "d ${svcCfg.dataDir} 0750 mem0 mem0 -"
         "d ${svcCfg.dataDir}/qdrant 0750 mem0 mem0 -"
+        "d ${svcCfg.dataDir}/.cache 0750 mem0 mem0 -"
+        "d ${svcCfg.dataDir}/.cache/uv 0750 mem0 mem0 -"
       ];
 
       # Systemd service for Mem0 MCP server
@@ -180,6 +177,9 @@ in
           MEM0_EMBEDDER_MODEL = svcCfg.embedder.model;
           MEM0_LLM_PROVIDER = svcCfg.llm.provider;
           MEM0_LLM_MODEL = svcCfg.llm.model;
+          MEM0_QDRANT_PATH = "${svcCfg.dataDir}/qdrant";
+          MEM0_TELEMETRY = "false";
+          ANONYMIZED_TELEMETRY = "false";
         };
 
         serviceConfig = {
@@ -189,14 +189,10 @@ in
           User = "mem0";
           Group = "mem0";
 
-          # Secrets via LoadCredential (not env vars) - readable at $CREDENTIALS_DIRECTORY/
-          LoadCredential = lib.optionals (svcCfg.embedder.apiKeyFile != null) [
-            "embedder-api-key:${svcCfg.embedder.apiKeyFile}"
-          ] ++ lib.optionals (svcCfg.llm.apiKeyFile != null) [
-            "llm-api-key:${svcCfg.llm.apiKeyFile}"
-          ];
+          # Note: Secrets read directly from agenix paths in script below
+          # (LoadCredential requires root-readable source files, but agenix sets mem0 ownership)
 
-          # Hardening
+          # Hardening (relaxed for Python threading/multiprocessing)
           NoNewPrivileges = true;
           ProtectSystem = "strict";
           ProtectHome = true;
@@ -209,13 +205,13 @@ in
           ProtectClock = true;
           RestrictRealtime = true;
           RestrictSUIDSGID = true;
-          MemoryDenyWriteExecute = true;
+          # MemoryDenyWriteExecute = true;  # Breaks Python JIT/ctypes
           LockPersonality = true;
-          RestrictNamespaces = true;
+          # RestrictNamespaces = true;  # Can interfere with threading
           RestrictAddressFamilies = [ "AF_INET" "AF_INET6" "AF_UNIX" ];
           ReadWritePaths = [ svcCfg.dataDir ];
           SystemCallArchitectures = "native";
-          SystemCallFilter = [ "@system-service" "~@privileged" "~@resources" ];
+          SystemCallFilter = [ "@system-service" "~@privileged" ];  # Removed ~@resources to allow threading
         };
 
         script = let
@@ -227,12 +223,12 @@ in
                      else "";
         in ''
           ${lib.optionalString (svcCfg.embedder.apiKeyFile != null && embedderKeyEnv != "") ''
-            export ${embedderKeyEnv}="$(cat "$CREDENTIALS_DIRECTORY/embedder-api-key")"
+            export ${embedderKeyEnv}="$(cat "${svcCfg.embedder.apiKeyFile}")"
           ''}
           ${lib.optionalString (svcCfg.llm.apiKeyFile != null && llmKeyEnv != "") ''
-            export ${llmKeyEnv}="$(cat "$CREDENTIALS_DIRECTORY/llm-api-key")"
+            export ${llmKeyEnv}="$(cat "${svcCfg.llm.apiKeyFile}")"
           ''}
-          exec ${pkgs-unstable.uv}/bin/uvx mem0-mcp --transport sse --host ${svcCfg.host} --port ${toString svcCfg.port}
+          exec ${pkgs-unstable.uv}/bin/uv run --with mem0ai --with "mcp[cli]" --with pydantic ${./mem0/server.py} --host ${svcCfg.host} --port ${toString svcCfg.port}
         '';
       };
 
