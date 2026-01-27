@@ -111,13 +111,6 @@
             ./modules/nixos/spotify.nix
             ./modules/nixos/moonlight-qt.nix
             ./modules/nixos/tlp-power-profiles-bridge.nix
-            inputs.vibe-kanban.nixosModules.default
-            {
-              services.vibe-kanban = {
-                enable = true;
-                port = 8080;
-              };
-            }
             inputs.home-manager.nixosModules.home-manager
             {
               home-manager = {

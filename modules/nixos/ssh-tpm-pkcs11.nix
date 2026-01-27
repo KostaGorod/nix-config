@@ -37,6 +37,9 @@ in
       agentPKCS11Whitelist = "${config.security.tpm2.pkcs11.package}/lib/*";
     };
 
+    # Disable conflicting GNOME GCR SSH agent (only one SSH agent can run)
+    services.gnome.gcr-ssh-agent.enable = lib.mkForce false;
+
     # Add specified users to tss group for TPM access
     users.users = lib.genAttrs cfg.users (user: {
       extraGroups = [ "tss" ];
