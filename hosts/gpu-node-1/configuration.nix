@@ -6,6 +6,7 @@
     ../../modules/nixos/tailscale.nix
     ../../modules/k3s/server.nix
     ../../modules/nvidia/default.nix
+    ../../modules/github-runner.nix
     ../../modules/nixos/vfio.nix
     ../../modules/nixos/libvirt.nix
     ../../modules/nixos/gpu-arbiter.nix
@@ -79,7 +80,7 @@
   # SERVICES
   # =============================================================================
 
-  # SSH - Tailscale SSH handles authentication, OpenSSH only listens on tailscale0
+  # SSH
   services.openssh = {
     enable = true;
     listenAddresses = [
@@ -90,6 +91,15 @@
       PasswordAuthentication = false;
     };
   };
+
+  # GitHub Actions Self-Hosted Runner (GitOps deployments)
+  # To enable: create token file and set enable = true
+  # Get token from: https://github.com/KostaGorod/nix-config/settings/actions/runners/new
+  services.github-runner-nixos = {
+    enable = false;  # Set to true after creating token file
+    url = "https://github.com/KostaGorod/nix-config";
+    tokenFile = "/run/secrets/github-runner-token";
+    labels = [ "nixos" "staging" "gpu" ];
 
   # Tailscale SSH - takes over SSH authentication via Tailscale identity
   services.tailscale.extraSetFlags = [
@@ -155,7 +165,7 @@
   # =============================================================================
   # PACKAGES
   # =============================================================================
-  # Enable fish shell (required for users with fish as default shell)
+  # Enable fish shell
   programs.fish.enable = true;
 
   environment.systemPackages = with pkgs; [
