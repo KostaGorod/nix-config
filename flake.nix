@@ -32,9 +32,18 @@
       inputs.nixpkgs.follows = "nixpkgs-unstable";
     };
 
-    antigravity-fhs.url = "github:KostaGorod/nix-config?dir=flakes/antigravity-fhs";
-    abacusai-fhs.url = "github:KostaGorod/nix-config?dir=flakes/abacusai-fhs";
-    vibe-kanban.url = "github:KostaGorod/nix-config?dir=flakes/vibe-kanban";
+    antigravity-fhs = {
+      url = "github:KostaGorod/nix-config?dir=flakes/antigravity-fhs";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    abacusai-fhs = {
+      url = "github:KostaGorod/nix-config?dir=flakes/abacusai-fhs";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    vibe-kanban = {
+      url = "github:KostaGorod/nix-config?dir=flakes/vibe-kanban";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     # cosmic-unstable = {
     #   url = "github:lilyinstarlight/nixos-cosmic";
