@@ -37,6 +37,7 @@ in
     ../../modules/nixos/mem0.nix # Mem0 AI memory layer
     # ../../modules/nixos/codex.nix # Numtide Codex AI assistant (temporarily disabled)
     ../../modules/nixos/bitwarden.nix # Bitwarden password manager (unstable)
+    ../../modules/nixos/ssh-tpm-pkcs11.nix # SSH with TPM PKCS#11 key storage
 
     #"${pkgs-stable.path}/nixos/modules/config/networking.nix"
     #"${pkgs-stable.path}/nixos/modules/services/networking/networkmanager.nix"
@@ -193,6 +194,12 @@ in
   #enable audit #DISA-STIG
   security.auditd.enable = true;
   security.audit.enable = true;
+
+  # Enable SSH with TPM PKCS#11 for hardware-backed SSH keys
+  security.ssh-tpm = {
+    enable = true;
+    users = [ "kosta" ];  # Grant TPM access to kosta
+  };
 
 
 
