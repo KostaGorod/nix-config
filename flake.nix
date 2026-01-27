@@ -1,132 +1,139 @@
 {
-  description = "KostaGorod's Nixos configuration";
+  description = "KostaGorod's NixOS configuration";
+
   inputs = {
-    # core
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11"; # NOTE: Replace "nixos-24.05" with that which is in system.stateVersion of configuration.nix. You can also use later versions.
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
     nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
 
-    # hardware
+    flake-parts = {
+      url = "github:hercules-ci/flake-parts";
+      inputs.nixpkgs-lib.follows = "nixpkgs";
+    };
+    treefmt-nix = {
+      url = "github:numtide/treefmt-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
     disko = {
       url = "github:nix-community/disko";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # Home-manager
     home-manager = {
       url = "github:nix-community/home-manager/release-25.11";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # Other
-    # nix-ld = { # Run unpatched dynamic binaries on NixOS.
-    #   url = "github:Mic92/nix-ld";
-    #   inputs.nixpkgs.follows = "nixpkgs-unstable";
-    # };
     zen-browser.url = "github:0xc000022070/zen-browser-flake";
 
-    # Unified AI Coding Agents from numtide/nix-ai-tools
     nix-ai-tools = {
       url = "github:numtide/nix-ai-tools";
       inputs.nixpkgs.follows = "nixpkgs-unstable";
     };
 
-    # Warp Terminal with FHS environment
-    warp-fhs = {
-      url = "path:flakes/warp-fhs";
-      # Don't follow our nixpkgs to avoid unnecessary downloads
-    };
+    antigravity-fhs.url = "github:KostaGorod/nix-config?dir=flakes/antigravity-fhs";
+    abacusai-fhs.url = "github:KostaGorod/nix-config?dir=flakes/abacusai-fhs";
+    vibe-kanban.url = "github:KostaGorod/nix-config?dir=flakes/vibe-kanban";
 
-    # Antigravity IDE (Google's AI-powered development environment)
-    # Local wrapper around jacopone/antigravity-nix for easy updates
-    antigravity-fhs = {
-      url = "path:flakes/antigravity-fhs";
-      # Don't follow our nixpkgs to avoid unnecessary downloads
-      # The antigravity flake manages its own nixpkgs dependency
-    };
-
-    # AbacusAI DeepAgent Desktop and CLI
-    abacusai-fhs = {
-      url = "path:flakes/abacusai-fhs";
-    };
-
-    # Vibe Kanban - AI coding agent orchestration tool
-    vibe-kanban = {
-      url = "path:flakes/vibe-kanban";
-    };
-
-    # Ultimate Bug Scanner - Industrial-grade static analysis
-    ultimate-bug-scanner = {
-      url = "github:Dicklesworthstone/ultimate_bug_scanner";
-    };
-
-    # mikrotikDevEnv = {
-    #   url = "path:environments/mikrotik";
-    #   inputs.nixpkgs.follows = "nixpkgs";
+    # cosmic-unstable = {
+    #   url = "github:lilyinstarlight/nixos-cosmic";
+    #   inputs.nixpkgs.follows = "nixpkgs-unstable";
     # };
-  };
-  outputs = inputs@{ self, nixpkgs, nixpkgs-unstable, nixos-hardware, home-manager, disko, zen-browser, nix-ai-tools, warp-fhs, antigravity-fhs, abacusai-fhs, vibe-kanban, ultimate-bug-scanner, ... }:
-  # let
 
-  # in
-  {
-    nixConfig = {
-      nix.settings.experimental-features = [ "nix-command" "flakes" ]; # enable flakes
-    };
+    ultimate-bug-scanner.url = "github:Dicklesworthstone/ultimate_bug_scanner";
 
-    nixosConfigurations.rocinante = nixpkgs.lib.nixosSystem {
-      # inherit system; # inherited it from 'let' block
-      specialArgs = { inherit inputs; }; # pass additional args to modules ( accesible via declared { config, pkgs, pkgs-stable, ...} at the top of the module.nix files)
-      modules = [
-        ./hosts/rocinante/configuration.nix
-        # nixos-hardware.nixosModules.lenovo-thinkpad-x1-9th-gen
-        inputs.disko.nixosModules.disko
-        ./hosts/rocinante/disko-config.nix
-
-        # nix-ld.nixosModules.nix-ld
-        # { programs.nix-ld.dev.enable = true; }
-
-        # make home-manager as a module of nixos
-        # so that home-manager configuration will be deployed automatically when executing `nixos-rebuild switch`
-        home-manager.nixosModules.home-manager
-        {
-          home-manager.useGlobalPkgs = true; # makes home-manager follow nixos's pkgs value
-          home-manager.useUserPackages = true;
-          home-manager.backupFileExtension = "backup"; # Backup existing files that conflict with home-manager
-          home-manager.users.kosta = import ./home-manager/home.nix;
-
-          # pass arguments to home.nix
-          home-manager.extraSpecialArgs = { inherit inputs; };
-        }
-
-        # others
-        ./de/plasma6.nix
-        ./de/cosmic.nix
-        ./modules/utils.nix
-        ./modules/editors.nix
-        ./modules/spotify.nix
-        ./modules/moonlight-qt.nix
-        ./modules/droids.nix
-        ./modules/abacusai.nix
-
-        # Vibe Kanban service (module from flake)
-        vibe-kanban.nixosModules.default
-      ];
-    };
-    nixosConfigurations.gpu-node-1 = nixpkgs.lib.nixosSystem {
-      specialArgs = { inherit inputs; };
-      modules = [
-        ./hosts/gpu-node-1/configuration.nix
-        inputs.disko.nixosModules.disko
-        ./hosts/gpu-node-1/disko-config.nix
-        # home-manager.nixosModules.home-manager
-        # {
-        #   home-manager.useGlobalPkgs = true;
-        #   home-manager.useUserPackages = true;
-        #   home-manager.users.kosta = import ./home-manager/home.nix;
-        #   home-manager.extraSpecialArgs = { inherit inputs; };
-        # }
-      ];
+    agenix = {
+      url = "github:ryantm/agenix";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
   };
+
+  outputs =
+    inputs@{
+      self,
+      flake-parts,
+      nixpkgs,
+      ...
+    }:
+    flake-parts.lib.mkFlake { inherit inputs; } {
+      systems = [
+        "x86_64-linux"
+        "aarch64-linux"
+      ];
+
+      imports = [
+        inputs.treefmt-nix.flakeModule
+      ];
+
+      perSystem = _: {
+        treefmt = {
+          projectRootFile = "flake.nix";
+          settings.excludes = [ "flakes/**" ];
+          programs = {
+            nixfmt.enable = true;
+            deadnix.enable = true;
+            statix.enable = true;
+          };
+        };
+
+        checks = {
+          # Only check the actual host build for now
+          rocinante-toplevel = self.nixosConfigurations.rocinante.config.system.build.toplevel;
+        };
+      };
+
+      flake = {
+        nixosConfigurations.rocinante = nixpkgs.lib.nixosSystem {
+          system = "x86_64-linux";
+          specialArgs = { inherit inputs; };
+          modules = [
+            ./hosts/rocinante
+            ./hosts/rocinante/disko-config.nix
+            inputs.disko.nixosModules.disko
+            inputs.agenix.nixosModules.default
+            ./modules/nixos/secrets.nix
+            ./profiles/workstation.nix
+            ./de/plasma6.nix
+            # inputs.cosmic-unstable.nixosModules.default
+            ./de/cosmic.nix
+            ./modules/nixos/utils.nix
+            ./modules/nixos/cliphist.nix
+            ./modules/nixos/spotify.nix
+            ./modules/nixos/moonlight-qt.nix
+            ./modules/nixos/tlp-power-profiles-bridge.nix
+            inputs.vibe-kanban.nixosModules.default
+            {
+              services.vibe-kanban = {
+                enable = true;
+                port = 8080;
+              };
+            }
+            inputs.home-manager.nixosModules.home-manager
+            {
+              home-manager = {
+                useGlobalPkgs = true;
+                useUserPackages = true;
+                backupFileExtension = "backup";
+                extraSpecialArgs = { inherit inputs; };
+                users.kosta = import ./users/kosta;
+              };
+            }
+          ];
+        };
+
+        nixosConfigurations.gpu-node-1 = nixpkgs.lib.nixosSystem {
+          system = "x86_64-linux";
+          specialArgs = { inherit inputs; };
+          modules = [
+            ./hosts/gpu-node-1/configuration.nix
+            inputs.disko.nixosModules.disko
+            inputs.agenix.nixosModules.default
+            ./modules/nixos/secrets.nix
+            ./hosts/gpu-node-1/disko-config.nix
+            ./hosts/gpu-node-1/hardware-configuration.nix
+          ];
+        };
+      };
+    };
 }

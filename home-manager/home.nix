@@ -1,28 +1,28 @@
-{ config, pkgs, lib, specialArgs, inputs, ... }:
+{
+  pkgs,
+  lib,
+  inputs,
+  ...
+}:
 let
   pkgs-unstable = import inputs.nixpkgs-unstable {
-    system = pkgs.stdenv.hostPlatform.system;
+    inherit (pkgs.stdenv.hostPlatform) system;
     config.allowUnfree = true;
   };
-  inherit (specialArgs) hostname role;
-  inherit (pkgs.stdenv) isLinux isDarwin;
+  inherit (pkgs.stdenv) isDarwin;
   homeDir = if isDarwin then "/Users/" else "/home/";
   username = "kosta";
 in
 {
-
 
   # TODO please change the username & home directory to your own
   # home.username = "kosta";
   # home.homeDirectory = "/home/kosta";
   # home.homeDirectory = homeDir+username;
   home = {
-  homeDirectory = homeDir+username;
-  inherit username;
+    homeDirectory = homeDir + username;
+    inherit username;
   };
-
-
-
 
   # link the configuration file in current directory to the specified location in home directory
   # home.file.".config/i3/wallpaper.jpg".source = ./wallpaper.jpg;
@@ -57,9 +57,6 @@ in
     fastfetch
     nnn # terminal file manager
 
-
-
-
     # git
     git-credential-oauth
 
@@ -91,12 +88,10 @@ in
     glow # markdown previewer in terminal
     pkgs-unstable.openterface-qt # GUI for openterface KVM
 
-
     # k8s and stuff
     kubectl
     k9s
     lens # GUI for k8s
-
 
     ##
     discord
@@ -119,7 +114,7 @@ in
     profiles.default = {
       userSettings = {
         "window.titleBarStyle" = "custom"; # Use Vscode's TitleBarStyle instead of ugly wayland's
-        "workbench.colorTheme" = "Tokyo Night Storm"; #apply theme
+        "workbench.colorTheme" = "Tokyo Night Storm"; # apply theme
       };
       extensions = with pkgs-unstable; [
         # theme
@@ -152,7 +147,9 @@ in
     settings = {
       user.name = "Kosta Gorod";
       user.email = "korolx147@gmail.com";
-      credential.helper = lib.mkBefore [ "${pkgs.gitFull.override { withLibsecret = true; }}/bin/git-credential-libsecret" ];
+      credential.helper = lib.mkBefore [
+        "${pkgs.gitFull.override { withLibsecret = true; }}/bin/git-credential-libsecret"
+      ];
     };
   };
   programs.git-credential-oauth.enable = true;
@@ -209,7 +206,10 @@ in
         space.space = "file_picker";
         space.w = ":w";
         space.q = ":q";
-        esc = [ "collapse_selection" "keep_primary_selection" ];
+        esc = [
+          "collapse_selection"
+          "keep_primary_selection"
+        ];
       };
     };
     extraPackages = [
@@ -221,7 +221,6 @@ in
       # pkgs.
     ];
   };
-
 
   # Bash shell with starship prompt
   programs.bash = {
@@ -255,25 +254,25 @@ in
 
   # Home-manager's zed produces read only `settings.json`, which limits features as changing models or settings at runtime.
   programs.zed-editor = {
-  #   enable = true;
+    #   enable = true;
     extraPackages = [ pkgs.ansible-lint ];
-  #   extensions = [
-  #     "tokyo-night" # Theme
-  #     "nix" #
-  #     "dockerfile"
-  #   ];
+    #   extensions = [
+    #     "tokyo-night" # Theme
+    #     "nix" #
+    #     "dockerfile"
+    #   ];
 
-  #   userSettings = {
-  #     terminal.env = {
-  #       ZED = "1";
-  #       TERM = "xterm-256color";
-  #     };
-  #      theme = {
-  #      mode = "dark"; # = "system" for auto
-  #      light = "Tokyo Night Light";
-  #      dark = "Tokyo Night Storm";
-  #      };
-  #   };
+    #   userSettings = {
+    #     terminal.env = {
+    #       ZED = "1";
+    #       TERM = "xterm-256color";
+    #     };
+    #      theme = {
+    #      mode = "dark"; # = "system" for auto
+    #      light = "Tokyo Night Light";
+    #      dark = "Tokyo Night Storm";
+    #      };
+    #   };
   };
 
   # programs.bash = {

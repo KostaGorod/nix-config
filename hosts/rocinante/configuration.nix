@@ -3,10 +3,16 @@
 # your system. Help is available in the configuration.nix(5) man page, on
 # https://search.nixos.org/options and in the NixOS manual (`nixos-help`).
 
-{ inputs, config, lib, pkgs, options, ... }:
+{
+  inputs,
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 let
   pkgs-unstable = import inputs.nixpkgs-unstable {
-    system = pkgs.stdenv.hostPlatform.system;
+    inherit (pkgs.stdenv.hostPlatform) system;
     config.allowUnfree = true;
   };
 in
@@ -21,23 +27,37 @@ in
   #   # ... add any other networking-related modules you want to take from stable ...
   # ];
 
-    # 2. Import the networking modules from the stable nixpkgs
+  # 2. Import the networking modules from the stable nixpkgs
   imports = [
-    ./hardware-configuration.nix # Include the results of the hardware scan.
-    ../../modules/tailscale.nix # Tailscale configuration module
-    ../../modules/opencode.nix # OpenCode AI coding agent
-    ../../modules/claude-code.nix # Claude Code CLI
-    # ../../modules/codex.nix # Numtide Codex AI assistant (temporarily disabled)
-    ../../modules/bitwarden.nix # Bitwarden password manager (unstable)
+    # hardware-configuration.nix imported via default.nix
+    ../../modules/nixos/tailscale.nix # Tailscale configuration module
+    ../../modules/nixos/nix-ld.nix # nix-ld for dynamic binary support (uv, python venvs)
+    ../../modules/nixos/opencode.nix # OpenCode AI coding agent
+    ../../modules/nixos/claude-code.nix # Claude Code CLI
+    ../../modules/nixos/mem0.nix # Mem0 AI memory layer
+    # ../../modules/nixos/codex.nix # Numtide Codex AI assistant (temporarily disabled)
+    ../../modules/nixos/bitwarden.nix # Bitwarden password manager (unstable)
 
     #"${pkgs-stable.path}/nixos/modules/config/networking.nix"
     #"${pkgs-stable.path}/nixos/modules/services/networking/networkmanager.nix"
     # "${pkgs-stable.path}/nixos/modules/services/networking/modemmanager.nix"
     # "${pkgs-stable.path}/nixos/modules/services/networking/wpa_supplicant.nix"
+  ];
+
+  nix.settings = {
+    substituters = [
+      "https://cache.nixos.org/"
+      "https://cosmic.cachix.org/"
     ];
-
-
-  nix.settings.experimental-features = [ "nix-command" "flakes" ];
+    trusted-public-keys = [
+      "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
+      "cosmic.cachix.org-1:Dya9IyXD4xdBehWjX818gw+s7maCeSJ8844iQ80x1M0="
+    ];
+    experimental-features = [
+      "nix-command"
+      "flakes"
+    ];
+  };
   #nix.channel.enable = true; # not sure if needed at all
   nix = {
     registry = lib.mapAttrs (_: value: { flake = value; }) inputs;
@@ -45,11 +65,13 @@ in
 
   };
   nixpkgs.config.allowUnfree = lib.mkForce true; # force allow unfree (if unfree is false by default)
-  nixpkgs.config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [
-    "claude-code"
-    "droid"
-    # "codex" # temporarily disabled
-  ];
+  nixpkgs.config.allowUnfreePredicate =
+    pkg:
+    builtins.elem (lib.getName pkg) [
+      "claude-code"
+      "droid"
+      # "codex" # temporarily disabled
+    ];
 
   # Bootloader.
   # Use the systemd-boot EFI boot loader.
@@ -59,12 +81,17 @@ in
   networking.hostName = "rocinante"; # hostname.
 
   networking.networkmanager = {
-    enable = true;  # Easiest to use and most distros use this by default.
-    dns = "none";  # Use standalone dnsmasq.service from tailscale.nix module
-    plugins = [ pkgs.networkmanager-openvpn ];  # OpenVPN support in NetworkManager
+    enable = true; # Easiest to use and most distros use this by default.
+    dns = "none"; # Use standalone dnsmasq.service from tailscale.nix module
+    plugins = [ pkgs.networkmanager-openvpn ]; # OpenVPN support in NetworkManager
   };
   # Unlock Integrated Modem
-  networking.modemmanager.fccUnlockScripts = [ {id = "1eac:1001"; path = "${pkgs.modemmanager}/share/ModemManager/fcc-unlock.available.d/1eac:1001";} ];
+  networking.modemmanager.fccUnlockScripts = [
+    {
+      id = "1eac:1001";
+      path = "${pkgs.modemmanager}/share/ModemManager/fcc-unlock.available.d/1eac:1001";
+    }
+  ];
   networking.timeServers = [ "timeserver.iix.net.il" ]; # Items in list seperated by space e.g.: [ "time.cloudflare.com" "time.example.com" ];
 
   # networking.dhcpcd.extraConfig = ''
@@ -78,11 +105,6 @@ in
   # metric 300
 
   # '';
-
-  # Virtualization
-  virtualisation.docker.enable = true;
-  virtualisation.docker.package = pkgs.docker_28;
-
 
   # fwupdmgr for firmwares updates
   services.fwupd.enable = true;
@@ -101,15 +123,15 @@ in
 
     # Add additional locales
     extraLocaleSettings = {
-        LC_ADDRESS = "en_US.UTF-8";
-        LC_IDENTIFICATION = "en_US.UTF-8";
-        LC_MEASUREMENT = "en_US.UTF-8";
-        LC_MONETARY = "en_US.UTF-8";
-        LC_NAME = "en_US.UTF-8";
-        LC_NUMERIC = "en_US.UTF-8";
-        LC_PAPER = "en_US.UTF-8";
-        LC_TELEPHONE = "en_US.UTF-8";
-        LC_TIME = "en_IL";
+      LC_ADDRESS = "en_US.UTF-8";
+      LC_IDENTIFICATION = "en_US.UTF-8";
+      LC_MEASUREMENT = "en_US.UTF-8";
+      LC_MONETARY = "en_US.UTF-8";
+      LC_NAME = "en_US.UTF-8";
+      LC_NUMERIC = "en_US.UTF-8";
+      LC_PAPER = "en_US.UTF-8";
+      LC_TELEPHONE = "en_US.UTF-8";
+      LC_TIME = "en_IL";
     };
 
     # Generate the locales you need
@@ -121,41 +143,38 @@ in
 
   #copy current config into etc, this way I can restore config if current evaluation is broken, BEWARE it can contain secrets and such...
   # or just use git
-  environment.etc.current-nixos-config.source = ./.; #https://logs.nix.samueldr.com/nixos/2018-06-25#1529934995-1529935276;
-
+  environment.etc.current-nixos-config.source = ./.; # https://logs.nix.samueldr.com/nixos/2018-06-25#1529934995-1529935276;
 
   # Configure network proxy if necessary
   # networking.proxy.default = "http://user:password@proxy:port/";
   # networking.proxy.noProxy = "127.0.0.1,localhost,internal.domain";
 
-
-  # Enable CUPS to print documents.
+  # Enable CUPS - host-specific drivers, localhost only
   services.printing = {
-    enable = true;
     drivers = [
       pkgs.hplip
       pkgs.pantum-driver
     ];
-    # Enable network printer sharing
-    listenAddresses = [ "*:631" ]; # Listen on all interfaces
-    allowFrom = [ "all" ]; # Allow access from all hosts
-    browsing = true; # Enable printer browsing
-    defaultShared = true; # Share all printers by default
+    listenAddresses = [ "localhost:631" ];
+    allowFrom = [ "localhost" ];
+    defaultShared = false;
   };
-  services.avahi = { # Printers discovery (Apple streaming disabled)
-    enable = true;
-    nssmdns4 = true;
-    openFirewall = true;
+  services.avahi = {
+    # Printers discovery (Apple streaming disabled)
+    enable = lib.mkForce false;
+    nssmdns4 = false;
+    openFirewall = false;
     # Disable Apple streaming/AirPlay features
     publish = {
-      enable = false;      # Don't advertise this machine
+      enable = false; # Don't advertise this machine
       userServices = false; # Don't publish user services (AirPlay receivers)
-      addresses = false;   # Don't publish addresses
-      hinfo = false;       # Don't publish hardware info
+      addresses = false; # Don't publish addresses
+      hinfo = false; # Don't publish hardware info
       workstation = false; # Don't publish workstation service
     };
-    reflector = false;     # Don't reflect mDNS (used by AirPlay across subnets)
+    reflector = false; # Don't reflect mDNS (used by AirPlay across subnets)
   };
+
   # Enable sound.
   # hardware.pulseaudio.enable = true;
   # OR
@@ -169,60 +188,53 @@ in
       support32Bit = true;
     };
   };
-security.rtkit.enable = true; # realtime scheduling priority to user processes on demand https://mynixos.com/nixpkgs/option/security.rtkit.enable
+  security.rtkit.enable = true; # realtime scheduling priority to user processes on demand https://mynixos.com/nixpkgs/option/security.rtkit.enable
 
-#enable audit #DISA-STIG
-security.auditd.enable = true;
-security.audit.enable = true;
-
-services.locate = {
-enable = true;
-#localuser = null; # use root, idk why its called null here.
-package = pkgs.plocate; # default is locate.
-interval = "hourly"; # possible with plocate because it's fast (because incremental)
-};
-
-# Power Management
-services.power-profiles-daemon.enable = false; # doesn't work with TLP.
-services.tlp = {
-      enable = true;
-      settings = {
-        CPU_SCALING_GOVERNOR_ON_AC = "performance";
-        CPU_SCALING_GOVERNOR_ON_BAT = "powersave";
-
-        CPU_ENERGY_PERF_POLICY_ON_BAT = "power";
-        CPU_ENERGY_PERF_POLICY_ON_AC = "performance";
-
-        PLATFORM_PROFILE_ON_AC = "performance";
-        PLATFORM_PROFILE_ON_BAT = "low-power";
+  #enable audit #DISA-STIG
+  security.auditd.enable = true;
+  security.audit.enable = true;
 
 
 
-        CPU_MIN_PERF_ON_AC = 0;
-        CPU_MAX_PERF_ON_AC = 100;
-        CPU_MIN_PERF_ON_BAT = 0;
-        CPU_MAX_PERF_ON_BAT = 20;
+  # Power Management
+  services.power-profiles-daemon.enable = false; # doesn't work with TLP.
+  services.tlp = {
+    enable = true;
+    settings = {
+      CPU_SCALING_GOVERNOR_ON_AC = "performance";
+      CPU_SCALING_GOVERNOR_ON_BAT = "powersave";
 
-       #Optional helps save long term battery health
-       START_CHARGE_THRESH_BAT0 = 40; # 40 and bellow it starts to charge
-       STOP_CHARGE_THRESH_BAT0 = 80; # 80 and above it stops charging
+      CPU_ENERGY_PERF_POLICY_ON_BAT = "power";
+      CPU_ENERGY_PERF_POLICY_ON_AC = "performance";
 
-      RUNTIME_PM_ON_AC = "on" ; # Keep devices active (no suspend) on AC to prevent touchpad delay
-      RUNTIME_PM_ON_BAT = "auto" ;
+      PLATFORM_PROFILE_ON_AC = "performance";
+      PLATFORM_PROFILE_ON_BAT = "low-power";
+
+      CPU_MIN_PERF_ON_AC = 0;
+      CPU_MAX_PERF_ON_AC = 100;
+      CPU_MIN_PERF_ON_BAT = 0;
+      CPU_MAX_PERF_ON_BAT = 20;
+
+      #Optional helps save long term battery health
+      START_CHARGE_THRESH_BAT0 = 40; # 40 and bellow it starts to charge
+      STOP_CHARGE_THRESH_BAT0 = 80; # 80 and above it stops charging
+
+      RUNTIME_PM_ON_AC = "on"; # Keep devices active (no suspend) on AC to prevent touchpad delay
+      RUNTIME_PM_ON_BAT = "auto";
 
       # USB_AUTOSUSPEND = 0;
       USB_DENYLIST = "0bda:8153"; # 17ef:*";
 
-      MEM_SLEEP_ON_AC = "deep"; #"s2idle";
+      MEM_SLEEP_ON_AC = "deep"; # "s2idle";
       MEM_SLEEP_ON_BAT = "deep";
 
-      RUNTIME_PM_DRIVER_DENYLIST = "mei_me nouveau xhci_hcd"; #  mhi_pci_generic";
+      RUNTIME_PM_DRIVER_DENYLIST = "mei_me nouveau xhci_hcd"; # mhi_pci_generic";
       # Driver denylist   = mei_me nouveau radeon #original
-      };
-};
+    };
+  };
 
   # set user's default shell system-wide (for all users)
-  users.defaultUserShell = pkgs.bash;
+  users.defaultUserShell = pkgs.fish;
 
   programs.adb.enable = true;
 
@@ -238,48 +250,64 @@ services.tlp = {
   # Enable OpenCode AI coding agent
   programs.opencode.enable = true;
 
-  # Enable Abacus.AI DeepAgent desktop client and CLI
-  programs.abacusai.enable = true;
-
-  # Enable Vibe Kanban AI coding agent orchestration (systemd service)
-  services.vibe-kanban = {
+  # Enable Mem0 AI memory layer for persistent agent memory (self-hosted)
+  programs.mem0 = {
     enable = true;
-    port = 8080;
+    selfHosted = true;
+    userId = "kosta";
+  };
+
+  # Mem0 MCP server as systemd service (SSE transport)
+  services.mem0 = {
+    enable = true;
+    port = 8050;
+    userId = "kosta";
     # host = "0.0.0.0";  # uncomment to expose to network
     # openFirewall = true;
+
+    # VoyageAI embeddings (voyage-4-lite)
+    embedder = {
+      provider = "voyageai";
+      model = "voyage-4-lite";
+      apiKeyFile = "/run/secrets/voyage-api-key";  # Create this file with your API key
+    };
+
+    # LLM for memory extraction (uses Anthropic)
+    llm = {
+      provider = "anthropic";
+      model = "claude-sonnet-4-20250514";
+      apiKeyFile = "/run/secrets/anthropic-api-key";  # Create this file with your API key
+    };
   };
+
+  # Enable Abacus.AI DeepAgent desktop client and CLI
+  programs.abacusai.enable = true;
 
   # Enable Bitwarden password manager (from nixpkgs-unstable)
   programs.bitwarden.enable = true;
 
-  # Enable direnv with nix-direnv integration (from unstable)
-  programs.direnv = {
-    enable = true;
-    package = pkgs-unstable.direnv;
-    nix-direnv.enable = true;
-  };
-
-  # users.users.kosta.extraGroups = lib.mkAfter ["adbusers"];
   # Define a user account. Don't forget to set a password with ‘passwd’.
   users.users.kosta = {
     isNormalUser = true;
-    extraGroups = [ "wheel" "networkmanager" "docker" "adbusers" ]; # Enable 'sudo' for the user. # Enable manage access to NetworkManager
+    extraGroups = [
+      "wheel"
+      "networkmanager"
+      "docker"
+      "adbusers"
+    ]; # Enable 'sudo' for the user. # Enable manage access to NetworkManager
     shell = pkgs.bash;
     packages = with pkgs; [
       # Antigravity IDE (Google AI-powered development environment)
       inputs.antigravity-fhs.packages.${pkgs.stdenv.hostPlatform.system}.default
       pkgs-unstable.uv
-      # Warp terminal with FHS environment for full system access
-      inputs.warp-fhs.packages.${pkgs.stdenv.hostPlatform.system}.default
-      # Native Warp terminal without FHS sandbox (allows normal sudo)
+      # Warp terminal
       warp-terminal
       _1password-gui
       firefox
       kdePackages.kdeconnect-kde
       kdePackages.plasma-browser-integration
       pciutils
-      remmina #rdp client
-      code-cursor
+      remmina # rdp client
       onlyoffice-desktopeditors
       #
       # modified Vivaldi package for native wayland support, also fixes crash in plasma6
@@ -301,10 +329,11 @@ services.tlp = {
         commandLineArgs = [
           "--ozone-platform=wayland"
           "--disable-gpu-memory-buffer-video-frames" # stop spam for full gpu buffer, hotfix for chromium 126-130, hopefully fixed on 131: https://github.com/th-ch/youtube-music/pull/2519
-          ];
+        ];
         proprietaryCodecs = true; # Optional
-        enableWidevine = true;    # Optional
+        enableWidevine = true; # Optional
       })
+      gitkraken
     ];
   };
 
@@ -313,8 +342,8 @@ services.tlp = {
 
   fonts.packages = with pkgs; [
     helvetica-neue-lt-std
-    fragment-mono #Helvetica Monospace Coding Font
-    aileron #Helvetica font in nine weights
+    fragment-mono # Helvetica Monospace Coding Font
+    aileron # Helvetica font in nine weights
 
   ];
   # List packages installed in system profile. To search, run:
@@ -325,14 +354,21 @@ services.tlp = {
       name = "antigravity";
       desktopName = "Antigravity IDE";
       comment = "Google Antigravity AI-powered development environment";
-      exec = "${inputs.antigravity-fhs.packages.${pkgs.stdenv.hostPlatform.system}.default}/bin/antigravity %U";
+      exec = "${
+        inputs.antigravity-fhs.packages.${pkgs.stdenv.hostPlatform.system}.default
+      }/bin/antigravity %U";
       icon = "code";
       terminal = false;
       type = "Application";
-      categories = [ "Development" "IDE" ];
+      categories = [
+        "Development"
+        "IDE"
+      ];
     })
     (writeShellScriptBin "antigravity" ''
-      exec ${inputs.antigravity-fhs.packages.${pkgs.stdenv.hostPlatform.system}.default}/bin/antigravity "$@"
+      exec ${
+        inputs.antigravity-fhs.packages.${pkgs.stdenv.hostPlatform.system}.default
+      }/bin/antigravity "$@"
     '')
 
     # Shells
@@ -366,8 +402,8 @@ services.tlp = {
     easyeffects
     teamviewer
     # (zed-editor.fhsWithPackages (pkgs: [ pkgs.zlib ])) # zed missing zlib to work is expected https://github.com/xhyrom/zed-discord-presence/issues/12
-    (python312.withPackages (ps:
-      with ps; [
+    (python312.withPackages (
+      ps: with ps; [
         ipython
         bpython
         #pandas
@@ -393,7 +429,6 @@ services.tlp = {
     enable = true;
   };
 
-
   # Some programs need SUID wrappers, can be configured further or are
   # started in user sessions.
   # programs.mtr.enable = true;
@@ -408,8 +443,35 @@ services.tlp = {
   # Open ports in the firewall.
   # networking.firewall.allowedTCPPorts = [ ... ];
   # networking.firewall.allowedUDPPorts = [ ... ];
-  # Or disable the firewall altogether.
-  networking.firewall.enable = false;
+
+  # Firewall enabled with strict default-deny policy
+  # Tailscale in separate zone with granular access control
+  networking.firewall = {
+    enable = true;
+
+    # Tailscale zone: Allow basic connectivity, but restrict specific ports
+    extraCommands = ''
+      # Allow established connections (stateful firewall)
+      iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+
+      # Allow Tailscale ICMP (ping, network discovery)
+      iptables -A INPUT -i tailscale0 -p icmp -j ACCEPT
+
+      # Allow port 9898 only from specific IP (not entire Tailscale network)
+      iptables -A INPUT -p tcp -s 100.102.123.22 --dport 9898 -j ACCEPT
+
+      # Allow other necessary Tailscale traffic (add as needed)
+      # Examples:
+      # iptables -A INPUT -i tailscale0 -p tcp --dport 22 -j ACCEPT  # SSH via Tailscale
+      # iptables -A INPUT -i tailscale0 -p tcp --dport 443 -j ACCEPT  # HTTPS via Tailscale
+    '';
+
+    extraStopCommands = ''
+      iptables -D INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT 2>/dev/null || true
+      iptables -D INPUT -i tailscale0 -p icmp -j ACCEPT 2>/dev/null || true
+      iptables -D INPUT -p tcp -s 100.102.123.22 --dport 9898 -j ACCEPT 2>/dev/null || true
+    '';
+  };
 
   #works only on unstable (or 24.11)
   hardware.graphics = {
@@ -446,6 +508,14 @@ services.tlp = {
   #
   # For more information, see `man configuration.nix` or https://nixos.org/manual/nixos/stable/options#opt-system.stateVersion .
   system.stateVersion = "24.05"; # Did you read the comment?
+
+  # Security hardening: Enable automatic security updates
+  # Critical for CVE patching and vulnerability remediation
+  system.autoUpgrade = {
+    enable = true;
+    allowReboot = false; # Manual reboot control required
+    dates = "weekly"; # Check for updates weekly
+  };
 
   # Optimising the NixOS store with automatic options. This will optimise the
   # store on every build which may slow down builds. The alternativ is to set
