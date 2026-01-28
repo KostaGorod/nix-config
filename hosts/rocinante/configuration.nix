@@ -306,6 +306,7 @@ in
     packages = with pkgs; [
       # Antigravity IDE (Google AI-powered development environment)
       inputs.antigravity-fhs.packages.${pkgs.stdenv.hostPlatform.system}.default
+      pkgs-unstable.chromium
       pkgs-unstable.uv
       # Warp terminal
       warp-terminal
