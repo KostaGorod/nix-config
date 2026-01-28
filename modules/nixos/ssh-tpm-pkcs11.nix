@@ -29,8 +29,8 @@ in
     # Enable TPM2 support (per wiki.nixos.org/wiki/TPM)
     security.tpm2 = {
       enable = true;
-      pkcs11.enable = true;           # Expose libtpm2_pkcs11.so
-      tctiEnvironment.enable = true;  # Set TPM2TOOLS_TCTI and TPM2_PKCS11_TCTI
+      pkcs11.enable = true; # Expose libtpm2_pkcs11.so
+      tctiEnvironment.enable = true; # Set TPM2TOOLS_TCTI and TPM2_PKCS11_TCTI
     };
 
     # Configure SSH agent to allow TPM PKCS#11 module loading
@@ -61,14 +61,14 @@ in
     '';
 
     # Add specified users to tss group for TPM access
-    users.users = lib.genAttrs cfg.users (user: {
+    users.users = lib.genAttrs cfg.users (_user: {
       extraGroups = [ "tss" ];
     });
 
     # Packages for TPM and FIDO2 SSH
     environment.systemPackages = [
       pkgs.tpm2-pkcs11
-      askpass  # SSH askpass for FIDO2 PIN prompts
+      askpass # SSH askpass for FIDO2 PIN prompts
     ];
   };
 }

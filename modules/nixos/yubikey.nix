@@ -66,18 +66,20 @@ in
 
   config = lib.mkIf cfg.enable {
     # Core FIDO2 library - required for ssh-keygen -t ed25519-sk / ecdsa-sk
-    environment.systemPackages = with pkgs; [
-      libfido2       # FIDO2/WebAuthn library with fido2-token CLI
-    ]
-    ++ lib.optionals cfg.tools [
-      yubikey-manager           # ykman CLI for YubiKey configuration
-      yubikey-personalization   # ykpersonalize for OTP slot programming
-      yubico-piv-tool           # PIV management
-    ]
-    ++ lib.optionals cfg.gpgAgent.enable [
-      gnupg
-      cfg.gpgAgent.pinentryPackage
-    ];
+    environment.systemPackages =
+      with pkgs;
+      [
+        libfido2 # FIDO2/WebAuthn library with fido2-token CLI
+      ]
+      ++ lib.optionals cfg.tools [
+        yubikey-manager # ykman CLI for YubiKey configuration
+        yubikey-personalization # ykpersonalize for OTP slot programming
+        yubico-piv-tool # PIV management
+      ]
+      ++ lib.optionals cfg.gpgAgent.enable [
+        gnupg
+        cfg.gpgAgent.pinentryPackage
+      ];
 
     # PC/SC daemon for smart card communication (PIV, PGP on YubiKey)
     services.pcscd.enable = cfg.pcscd;
@@ -90,35 +92,39 @@ in
     # GPG agent configuration
     programs.gnupg.agent = lib.mkIf cfg.gpgAgent.enable {
       enable = true;
-      enableSSHSupport = cfg.gpgAgent.enableSSHSupport;
-      pinentryPackage = cfg.gpgAgent.pinentryPackage;
+      inherit (cfg.gpgAgent) enableSSHSupport;
+      inherit (cfg.gpgAgent) pinentryPackage;
     };
 
     # PAM U2F authentication
     # Requires: pamu2fcfg > ~/.config/Yubico/u2f_keys
-    security.pam.u2f = lib.mkIf (cfg.u2fAuth.sudo || cfg.u2fAuth.login || cfg.u2fAuth.polkit || cfg.u2fAuth.screenLock) {
-      enable = true;
-      # cue = true;  # Uncomment to show "Please touch the device" prompt
-      # interactive = true;  # Uncomment for interactive prompts
-      control = "sufficient";  # U2F success is enough (fallback to password)
-      # control = "required";  # Uncomment to require U2F (no fallback)
-    };
+    security.pam.u2f =
+      lib.mkIf (cfg.u2fAuth.sudo || cfg.u2fAuth.login || cfg.u2fAuth.polkit || cfg.u2fAuth.screenLock)
+        {
+          enable = true;
+          # cue = true;  # Uncomment to show "Please touch the device" prompt
+          # interactive = true;  # Uncomment for interactive prompts
+          control = "sufficient"; # U2F success is enough (fallback to password)
+          # control = "required";  # Uncomment to require U2F (no fallback)
+        };
 
-    security.pam.services = lib.mkIf (cfg.u2fAuth.sudo || cfg.u2fAuth.login || cfg.u2fAuth.polkit || cfg.u2fAuth.screenLock) {
-      # sudo/su: U2F authentication
-      sudo.u2fAuth = cfg.u2fAuth.sudo;
-      su.u2fAuth = cfg.u2fAuth.sudo;
+    security.pam.services =
+      lib.mkIf (cfg.u2fAuth.sudo || cfg.u2fAuth.login || cfg.u2fAuth.polkit || cfg.u2fAuth.screenLock)
+        {
+          # sudo/su: U2F authentication
+          sudo.u2fAuth = cfg.u2fAuth.sudo;
+          su.u2fAuth = cfg.u2fAuth.sudo;
 
-      # polkit: U2F for GUI privilege escalation
-      polkit-1.u2fAuth = cfg.u2fAuth.polkit;
+          # polkit: U2F for GUI privilege escalation
+          polkit-1.u2fAuth = cfg.u2fAuth.polkit;
 
-      # Login: U2F authentication
-      login.u2fAuth = cfg.u2fAuth.login;
-      greetd.u2fAuth = cfg.u2fAuth.login;
+          # Login: U2F authentication
+          login.u2fAuth = cfg.u2fAuth.login;
+          greetd.u2fAuth = cfg.u2fAuth.login;
 
-      # Screen lock: U2F authentication
-      swaylock.u2fAuth = cfg.u2fAuth.screenLock;
-      hyprlock.u2fAuth = cfg.u2fAuth.screenLock;
-    };
+          # Screen lock: U2F authentication
+          swaylock.u2fAuth = cfg.u2fAuth.screenLock;
+          hyprlock.u2fAuth = cfg.u2fAuth.screenLock;
+        };
   };
 }

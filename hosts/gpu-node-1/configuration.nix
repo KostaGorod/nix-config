@@ -84,7 +84,10 @@
   services.openssh = {
     enable = true;
     listenAddresses = [
-      { addr = "0.0.0.0"; port = 22; }  # Needed for initial setup, can be restricted later
+      {
+        addr = "0.0.0.0";
+        port = 22;
+      } # Needed for initial setup, can be restricted later
     ];
     settings = {
       PermitRootLogin = "no";
@@ -96,10 +99,15 @@
   # To enable: create token file and set enable = true
   # Get token from: https://github.com/KostaGorod/nix-config/settings/actions/runners/new
   services.github-runner-nixos = {
-    enable = false;  # Set to true after creating token file
+    enable = false; # Set to true after creating token file
     url = "https://github.com/KostaGorod/nix-config";
     tokenFile = "/run/secrets/github-runner-token";
-    labels = [ "nixos" "staging" "gpu" ];
+    labels = [
+      "nixos"
+      "staging"
+      "gpu"
+    ];
+  };
 
   # Tailscale SSH - takes over SSH authentication via Tailscale identity
   services.tailscale.extraSetFlags = [
@@ -109,7 +117,7 @@
   # Helicone LLM Observability (docker-compose)
   services.helicone = {
     enable = true;
-    hostName = "gpu-node-1";  # Tailscale hostname for self-hosted URLs
+    hostName = "gpu-node-1"; # Tailscale hostname for self-hosted URLs
     openFirewall = true;
     # Generate proper secrets for production:
     # secrets.betterAuthSecret = "$(openssl rand -hex 32)";
@@ -123,41 +131,43 @@
   # Gonya990@github.com -> gonya990
 
   # Base groups for GPU node users
-  users.users = let
-    gpuUserGroups = [
-      "wheel"
-      "docker"
-      "video"
-      "render"
-      "libvirtd"
-    ];
-  in {
-    # Primary admin user (existing)
-    kosta = {
-      isNormalUser = true;
-      extraGroups = gpuUserGroups;
-      shell = pkgs.fish;
-      openssh.authorizedKeys.keys = [
-        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFtkgXu/YbIS0vS4D/gZwejFfTs5JgnzuC8mJ7458M8/ kosta@rocinante"
+  users.users =
+    let
+      gpuUserGroups = [
+        "wheel"
+        "docker"
+        "video"
+        "render"
+        "libvirtd"
       ];
-      hashedPassword = "$6$DEZMi88WK4aKrWfc$HNdlAblj5.KRkmizg6fffuDexQmYGLewdmiu1w1FtBRSWvQs9BSfGCv8wIJ8bive3ZSCdGW11qo4YX6dTgmPQ1";
-    };
+    in
+    {
+      # Primary admin user (existing)
+      kosta = {
+        isNormalUser = true;
+        extraGroups = gpuUserGroups;
+        shell = pkgs.fish;
+        openssh.authorizedKeys.keys = [
+          "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFtkgXu/YbIS0vS4D/gZwejFfTs5JgnzuC8mJ7458M8/ kosta@rocinante"
+        ];
+        hashedPassword = "$6$DEZMi88WK4aKrWfc$HNdlAblj5.KRkmizg6fffuDexQmYGLewdmiu1w1FtBRSWvQs9BSfGCv8wIJ8bive3ZSCdGW11qo4YX6dTgmPQ1";
+      };
 
-    # Tailscale SSH user: KostaGorod@github.com -> kostagorod
-    kostagorod = {
-      isNormalUser = true;
-      extraGroups = gpuUserGroups;
-      shell = pkgs.fish;
-      # Auth handled by Tailscale SSH - no password or SSH keys needed
-    };
+      # Tailscale SSH user: KostaGorod@github.com -> kostagorod
+      kostagorod = {
+        isNormalUser = true;
+        extraGroups = gpuUserGroups;
+        shell = pkgs.fish;
+        # Auth handled by Tailscale SSH - no password or SSH keys needed
+      };
 
-    # Tailscale SSH user: Gonya990@github.com -> gonya990
-    gonya990 = {
-      isNormalUser = true;
-      extraGroups = gpuUserGroups;
-      # Auth handled by Tailscale SSH - no password or SSH keys needed
+      # Tailscale SSH user: Gonya990@github.com -> gonya990
+      gonya990 = {
+        isNormalUser = true;
+        extraGroups = gpuUserGroups;
+        # Auth handled by Tailscale SSH - no password or SSH keys needed
+      };
     };
-  };
 
   # Allow wheel group to sudo without password (optional, for convenience)
   security.sudo.wheelNeedsPassword = false;
@@ -213,7 +223,11 @@
   # =============================================================================
   security.sudo.extraRules = [
     {
-      users = [ "kosta" "kostagorod" "gonya990" ];
+      users = [
+        "kosta"
+        "kostagorod"
+        "gonya990"
+      ];
       commands = [
         {
           command = "${pkgs.libvirt}/bin/virsh *";

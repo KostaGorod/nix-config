@@ -1,11 +1,17 @@
-{ config, lib, pkgs, inputs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  inputs,
+  ...
+}:
 
 let
   cfg = config.programs.mem0;
   svcCfg = config.services.mem0;
 
   pkgs-unstable = import inputs.nixpkgs-unstable {
-    system = pkgs.stdenv.hostPlatform.system;
+    inherit (pkgs.stdenv.hostPlatform) system;
     config.allowUnfree = true;
   };
 in
@@ -74,7 +80,11 @@ in
     # Embedder configuration
     embedder = {
       provider = lib.mkOption {
-        type = lib.types.enum [ "openai" "voyageai" "ollama" ];
+        type = lib.types.enum [
+          "openai"
+          "voyageai"
+          "ollama"
+        ];
         default = "openai";
         description = "Embedding provider (openai, voyageai, ollama)";
       };
@@ -95,7 +105,11 @@ in
     # LLM configuration
     llm = {
       provider = lib.mkOption {
-        type = lib.types.enum [ "openai" "anthropic" "ollama" ];
+        type = lib.types.enum [
+          "openai"
+          "anthropic"
+          "ollama"
+        ];
         default = "openai";
         description = "LLM provider for memory extraction";
       };
@@ -134,7 +148,8 @@ in
       # System packages
       environment.systemPackages = [
         pkgs-unstable.uv
-      ] ++ lib.optionals cfg.enableMcpServer [
+      ]
+      ++ lib.optionals cfg.enableMcpServer [
         (pkgs.writeShellScriptBin "mem0-mcp-server" ''
           export MEM0_DATA_DIR="''${MEM0_DATA_DIR:-$HOME/.local/share/mem0}"
           export MEM0_DEFAULT_USER_ID="''${MEM0_DEFAULT_USER_ID:-${cfg.userId}}"
@@ -152,7 +167,7 @@ in
         group = "mem0";
         description = "Mem0 AI memory service";
       };
-      users.groups.mem0 = {};
+      users.groups.mem0 = { };
 
       environment.systemPackages = [ pkgs-unstable.uv ];
 
@@ -208,28 +223,45 @@ in
           # MemoryDenyWriteExecute = true;  # Breaks Python JIT/ctypes
           LockPersonality = true;
           # RestrictNamespaces = true;  # Can interfere with threading
-          RestrictAddressFamilies = [ "AF_INET" "AF_INET6" "AF_UNIX" ];
+          RestrictAddressFamilies = [
+            "AF_INET"
+            "AF_INET6"
+            "AF_UNIX"
+          ];
           ReadWritePaths = [ svcCfg.dataDir ];
           SystemCallArchitectures = "native";
-          SystemCallFilter = [ "@system-service" "~@privileged" ];  # Removed ~@resources to allow threading
+          SystemCallFilter = [
+            "@system-service"
+            "~@privileged"
+          ]; # Removed ~@resources to allow threading
         };
 
-        script = let
-          embedderKeyEnv = if svcCfg.embedder.provider == "voyageai" then "VOYAGE_API_KEY"
-                          else if svcCfg.embedder.provider == "openai" then "OPENAI_API_KEY"
-                          else "";
-          llmKeyEnv = if svcCfg.llm.provider == "openai" then "OPENAI_API_KEY"
-                     else if svcCfg.llm.provider == "anthropic" then "ANTHROPIC_API_KEY"
-                     else "";
-        in ''
-          ${lib.optionalString (svcCfg.embedder.apiKeyFile != null && embedderKeyEnv != "") ''
-            export ${embedderKeyEnv}="$(cat "${svcCfg.embedder.apiKeyFile}")"
-          ''}
-          ${lib.optionalString (svcCfg.llm.apiKeyFile != null && llmKeyEnv != "") ''
-            export ${llmKeyEnv}="$(cat "${svcCfg.llm.apiKeyFile}")"
-          ''}
-          exec ${pkgs-unstable.uv}/bin/uv run --with mem0ai --with "mcp[cli]" --with pydantic ${./mem0/server.py} --host ${svcCfg.host} --port ${toString svcCfg.port}
-        '';
+        script =
+          let
+            embedderKeyEnv =
+              if svcCfg.embedder.provider == "voyageai" then
+                "VOYAGE_API_KEY"
+              else if svcCfg.embedder.provider == "openai" then
+                "OPENAI_API_KEY"
+              else
+                "";
+            llmKeyEnv =
+              if svcCfg.llm.provider == "openai" then
+                "OPENAI_API_KEY"
+              else if svcCfg.llm.provider == "anthropic" then
+                "ANTHROPIC_API_KEY"
+              else
+                "";
+          in
+          ''
+            ${lib.optionalString (svcCfg.embedder.apiKeyFile != null && embedderKeyEnv != "") ''
+              export ${embedderKeyEnv}="$(cat "${svcCfg.embedder.apiKeyFile}")"
+            ''}
+            ${lib.optionalString (svcCfg.llm.apiKeyFile != null && llmKeyEnv != "") ''
+              export ${llmKeyEnv}="$(cat "${svcCfg.llm.apiKeyFile}")"
+            ''}
+            exec ${pkgs-unstable.uv}/bin/uv run --with mem0ai --with "mcp[cli]" --with pydantic ${./mem0/server.py} --host ${svcCfg.host} --port ${toString svcCfg.port}
+          '';
       };
 
       # Firewall

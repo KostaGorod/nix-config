@@ -1,6 +1,11 @@
 # GitHub Actions Self-Hosted Runner Module
 # Enables GitOps-style deployments where the node pulls and applies its own configuration
-{ config, pkgs, lib, ... }:
+{
+  config,
+  pkgs,
+  lib,
+  ...
+}:
 
 {
   options.services.github-runner-nixos = {
@@ -26,7 +31,10 @@
 
     labels = lib.mkOption {
       type = lib.types.listOf lib.types.str;
-      default = [ "nixos" "self-hosted" ];
+      default = [
+        "nixos"
+        "self-hosted"
+      ];
       description = "Labels for the runner";
     };
   };
@@ -35,9 +43,9 @@
     # GitHub Actions runner service
     services.github-runners.${config.services.github-runner-nixos.name} = {
       enable = true;
-      url = config.services.github-runner-nixos.url;
-      tokenFile = config.services.github-runner-nixos.tokenFile;
-      name = config.services.github-runner-nixos.name;
+      inherit (config.services.github-runner-nixos) url;
+      inherit (config.services.github-runner-nixos) tokenFile;
+      inherit (config.services.github-runner-nixos) name;
       extraLabels = config.services.github-runner-nixos.labels ++ [
         config.networking.hostName
         "linux"

@@ -1,13 +1,19 @@
 # Helicone All-in-One - Minimal deployment for testing
 # Usage: Import this module and set services.helicone-aio.enable = true
-{ config, lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 
 with lib;
 
 let
   cfg = config.services.helicone-aio;
-  garagePort = 3900;  # Garage S3 API port
-in {
+  garagePort = 3900; # Garage S3 API port
+in
+{
   options.services.helicone-aio = {
     enable = mkEnableOption "Helicone All-in-One container";
 
@@ -77,13 +83,19 @@ in {
         "d ${cfg.dataDir} 0755 root root -"
         "d ${cfg.dataDir}/postgres 0755 root root -"
         "d ${cfg.dataDir}/clickhouse 0755 root root -"
-      ] ++ (if cfg.useGarage then [
-        "d ${cfg.dataDir}/garage 0755 root root -"
-        "d ${cfg.dataDir}/garage/meta 0755 root root -"
-        "d ${cfg.dataDir}/garage/data 0755 root root -"
-      ] else [
-        "d ${cfg.dataDir}/minio 0755 root root -"
-      ]);
+      ]
+      ++ (
+        if cfg.useGarage then
+          [
+            "d ${cfg.dataDir}/garage 0755 root root -"
+            "d ${cfg.dataDir}/garage/meta 0755 root root -"
+            "d ${cfg.dataDir}/garage/data 0755 root root -"
+          ]
+        else
+          [
+            "d ${cfg.dataDir}/minio 0755 root root -"
+          ]
+      );
 
       virtualisation.oci-containers.containers.helicone = {
         image = "helicone/helicone-all-in-one:latest";
@@ -91,16 +103,28 @@ in {
         ports = [
           "${cfg.listenAddress}:${toString cfg.port}:3000"
           "${cfg.listenAddress}:8585:8585"
-        ] ++ (if cfg.useGarage then [] else [
-          "${cfg.listenAddress}:9080:9080"  # Only expose MinIO if not using Garage
-        ]);
+        ]
+        ++ (
+          if cfg.useGarage then
+            [ ]
+          else
+            [
+              "${cfg.listenAddress}:9080:9080" # Only expose MinIO if not using Garage
+            ]
+        );
 
         volumes = [
           "${cfg.dataDir}/postgres:/var/lib/postgresql/data"
           "${cfg.dataDir}/clickhouse:/var/lib/clickhouse"
-        ] ++ (if cfg.useGarage then [] else [
-          "${cfg.dataDir}/minio:/data"
-        ]);
+        ]
+        ++ (
+          if cfg.useGarage then
+            [ ]
+          else
+            [
+              "${cfg.dataDir}/minio:/data"
+            ]
+        );
 
         environment = {
           NEXT_PUBLIC_IS_ON_PREM = "true";
@@ -110,15 +134,23 @@ in {
           BETTER_AUTH_URL = "http://${cfg.hostName}:${toString cfg.port}";
           BETTER_AUTH_SECRET = "test-secret-change-me-in-production";
           # S3 endpoint - either Garage or internal MinIO
-          S3_ENDPOINT = if cfg.useGarage
-            then "http://${cfg.hostName}:${toString garagePort}"
-            else "http://${cfg.hostName}:9080";
+          S3_ENDPOINT =
+            if cfg.useGarage then
+              "http://${cfg.hostName}:${toString garagePort}"
+            else
+              "http://${cfg.hostName}:9080";
           S3_REGION = "garage";
           S3_BUCKET = "helicone";
-        } // (if cfg.useGarage then {
-          S3_ACCESS_KEY = cfg.garage.s3AccessKey;
-          # Note: S3_SECRET_KEY should be set via environmentFiles for security
-        } else {});
+        }
+        // (
+          if cfg.useGarage then
+            {
+              S3_ACCESS_KEY = cfg.garage.s3AccessKey;
+              # Note: S3_SECRET_KEY should be set via environmentFiles for security
+            }
+          else
+            { }
+        );
 
         # For Garage, pass secret key via environment file
         environmentFiles = mkIf (cfg.useGarage && cfg.garage.s3SecretKeyFile != null) [
@@ -127,7 +159,11 @@ in {
       };
 
       networking.firewall.allowedTCPPorts = mkIf cfg.openFirewall (
-        [ cfg.port 8585 ] ++ (if cfg.useGarage then [ garagePort ] else [ 9080 ])
+        [
+          cfg.port
+          8585
+        ]
+        ++ (if cfg.useGarage then [ garagePort ] else [ 9080 ])
       );
     }
 
@@ -141,7 +177,7 @@ in {
           metadata_dir = "${cfg.dataDir}/garage/meta";
           data_dir = "${cfg.dataDir}/garage/data";
 
-          replication_mode = "none";  # Single node
+          replication_mode = "none"; # Single node
 
           rpc_bind_addr = "[::]:3901";
           rpc_public_addr = "127.0.0.1:3901";

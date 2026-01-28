@@ -1,6 +1,11 @@
 # Helicone LLM Observability - NixOS native deployment
 # Uses oci-containers with proper service definitions
-{ config, lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 
 with lib;
 
@@ -17,7 +22,8 @@ let
   redisHost = "helicone-redis";
   jawnHost = "helicone-jawn";
 
-in {
+in
+{
   options.services.helicone = {
     enable = mkEnableOption "Helicone LLM Observability";
 
@@ -159,10 +165,16 @@ in {
       description = "Run Helicone database migrations";
       wantedBy = [ "multi-user.target" ];
       after = [ "podman-helicone-db.service" ];
-      before = [ "podman-helicone-jawn.service" "podman-helicone-web.service" ];
+      before = [
+        "podman-helicone-jawn.service"
+        "podman-helicone-web.service"
+      ];
       requires = [ "podman-helicone-db.service" ];
 
-      path = [ pkgs.git pkgs.podman ];
+      path = [
+        pkgs.git
+        pkgs.podman
+      ];
 
       serviceConfig = {
         Type = "oneshot";
@@ -233,7 +245,10 @@ in {
     systemd.services.helicone-clickhouse-migrate = {
       description = "Run Helicone ClickHouse migrations";
       wantedBy = [ "multi-user.target" ];
-      after = [ "podman-helicone-clickhouse.service" "helicone-network.service" ];
+      after = [
+        "podman-helicone-clickhouse.service"
+        "helicone-network.service"
+      ];
       before = [ "podman-helicone-jawn.service" ];
       requires = [ "podman-helicone-clickhouse.service" ];
 
@@ -270,7 +285,10 @@ in {
     systemd.services.helicone-minio-init = {
       description = "Create Helicone S3 buckets";
       wantedBy = [ "multi-user.target" ];
-      after = [ "podman-helicone-minio.service" "helicone-network.service" ];
+      after = [
+        "podman-helicone-minio.service"
+        "helicone-network.service"
+      ];
       before = [ "podman-helicone-jawn.service" ];
       requires = [ "podman-helicone-minio.service" ];
 
@@ -350,7 +368,12 @@ in {
         # MinIO Object Storage - exposed for browser access to request/response bodies
         helicone-minio = {
           image = cfg.images.minio;
-          cmd = [ "server" "/data" "--console-address" ":9001" ];
+          cmd = [
+            "server"
+            "/data"
+            "--console-address"
+            ":9001"
+          ];
           ports = [
             "${toString cfg.ports.minio}:9000"
             "${toString cfg.ports.minioConsole}:9001"
@@ -385,7 +408,12 @@ in {
         # Jawn Backend API (waits for migrations via systemd)
         helicone-jawn = {
           image = cfg.images.jawn;
-          dependsOn = [ "helicone-db" "helicone-clickhouse" "helicone-minio" "helicone-redis" ];
+          dependsOn = [
+            "helicone-db"
+            "helicone-clickhouse"
+            "helicone-minio"
+            "helicone-redis"
+          ];
           # Note: helicone-migrate and helicone-clickhouse-migrate systemd services
           # are configured to run before this container starts
           ports = [ "${toString cfg.ports.jawn}:8585" ];

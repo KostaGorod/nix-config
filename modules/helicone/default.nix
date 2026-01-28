@@ -1,4 +1,9 @@
-{ config, lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 
 with lib;
 
@@ -42,12 +47,16 @@ let
     };
   };
 
-in {
+in
+{
   options.services.helicone = {
     enable = mkEnableOption "Helicone LLM observability platform";
 
     deploymentMode = mkOption {
-      type = types.enum [ "all-in-one" "hybrid" ];
+      type = types.enum [
+        "all-in-one"
+        "hybrid"
+      ];
       default = "all-in-one";
       description = ''
         Deployment mode:
@@ -161,7 +170,13 @@ in {
     # S3 options
     s3 = {
       backend = mkOption {
-        type = types.enum [ "embedded" "garage" "rustfs" "minio" "external" ];
+        type = types.enum [
+          "embedded"
+          "garage"
+          "rustfs"
+          "minio"
+          "external"
+        ];
         default = "embedded";
         description = ''
           S3 backend:
@@ -291,7 +306,10 @@ in {
       enable = mkEnableOption "automated backups for Helicone databases";
 
       backend = mkOption {
-        type = types.enum [ "restic" "borgbackup" ];
+        type = types.enum [
+          "restic"
+          "borgbackup"
+        ];
         default = "restic";
         description = "Backup tool to use";
       };
@@ -362,7 +380,8 @@ in {
         message = "Hybrid mode requires an external S3 backend (garage, rustfs, minio, or external)";
       }
       {
-        assertion = cfg.s3.backend != "garage" || (cfg.s3.garage.rpcSecret != "" && cfg.s3.garage.adminToken != "");
+        assertion =
+          cfg.s3.backend != "garage" || (cfg.s3.garage.rpcSecret != "" && cfg.s3.garage.adminToken != "");
         message = "Garage backend requires rpcSecret and adminToken to be set";
       }
     ];
@@ -376,7 +395,8 @@ in {
       "d ${cfg.dataDir}/postgres 0750 root root -"
       "d ${cfg.dataDir}/clickhouse 0750 root root -"
       "d ${cfg.dataDir}/minio 0750 root root -"
-    ] ++ optionals cfg.cliproxyapi.enable [
+    ]
+    ++ optionals cfg.cliproxyapi.enable [
       "d ${cfg.cliproxyapi.dataDir} 0750 root root -"
       "d ${cfg.cliproxyapi.dataDir}/config 0750 root root -"
       "d ${cfg.cliproxyapi.dataDir}/data 0750 root root -"
@@ -387,7 +407,7 @@ in {
       # Helicone all-in-one container
       (mkIf (cfg.deploymentMode == "all-in-one") {
         helicone = {
-          image = cfg.image;
+          inherit (cfg) image;
           ports = [ "127.0.0.1:${toString cfg.port}:3000" ];
 
           volumes = [
@@ -407,7 +427,7 @@ in {
       # Helicone container for hybrid mode (connects to external DBs)
       (mkIf (cfg.deploymentMode == "hybrid") {
         helicone = {
-          image = cfg.image;
+          inherit (cfg) image;
           ports = [ "127.0.0.1:${toString cfg.port}:3000" ];
 
           environment = {
@@ -441,7 +461,7 @@ in {
       # CLIProxyAPI container
       (mkIf cfg.cliproxyapi.enable {
         cliproxyapi = {
-          image = cfg.cliproxyapi.image;
+          inherit (cfg.cliproxyapi) image;
           ports = [
             "127.0.0.1:${toString cfg.cliproxyapi.port}:8080"
             "127.0.0.1:${toString cfg.cliproxyapi.managementPort}:8081"
@@ -478,7 +498,12 @@ in {
             RUSTFS_ROOT_USER = cfg.s3.accessKey;
             RUSTFS_ROOT_PASSWORD = cfg.s3.secretKey;
           };
-          cmd = [ "server" "/data" "--console-address" ":9001" ];
+          cmd = [
+            "server"
+            "/data"
+            "--console-address"
+            ":9001"
+          ];
         };
       })
     ];
@@ -498,10 +523,12 @@ in {
       };
 
       ensureDatabases = [ cfg.postgresql.database ];
-      ensureUsers = [{
-        name = cfg.postgresql.user;
-        ensureDBOwnership = true;
-      }];
+      ensureUsers = [
+        {
+          name = cfg.postgresql.user;
+          ensureDBOwnership = true;
+        }
+      ];
 
       authentication = ''
         host ${cfg.postgresql.database} ${cfg.postgresql.user} 127.0.0.1/32 scram-sha-256
@@ -531,41 +558,43 @@ in {
     };
 
     # Garage bucket initialization
-    systemd.services.garage-helicone-init = mkIf (cfg.deploymentMode == "hybrid" && cfg.s3.backend == "garage") {
-      description = "Initialize Garage buckets for Helicone";
-      after = [ "garage.service" ];
-      wantedBy = [ "multi-user.target" ];
+    systemd.services.garage-helicone-init =
+      mkIf (cfg.deploymentMode == "hybrid" && cfg.s3.backend == "garage")
+        {
+          description = "Initialize Garage buckets for Helicone";
+          after = [ "garage.service" ];
+          wantedBy = [ "multi-user.target" ];
 
-      serviceConfig = {
-        Type = "oneshot";
-        RemainAfterExit = true;
-      };
+          serviceConfig = {
+            Type = "oneshot";
+            RemainAfterExit = true;
+          };
 
-      path = [ pkgs.garage ];
+          path = [ pkgs.garage ];
 
-      script = ''
-        # Wait for Garage to be ready
-        sleep 10
+          script = ''
+            # Wait for Garage to be ready
+            sleep 10
 
-        # Create access key for Helicone
-        garage key create helicone-key || true
+            # Create access key for Helicone
+            garage key create helicone-key || true
 
-        # Create buckets
-        garage bucket create ${cfg.s3.bucket} || true
-        garage bucket create prompts || true
-        garage bucket create hql || true
-        garage bucket create llm-cache || true
+            # Create buckets
+            garage bucket create ${cfg.s3.bucket} || true
+            garage bucket create prompts || true
+            garage bucket create hql || true
+            garage bucket create llm-cache || true
 
-        # Grant permissions
-        garage bucket allow --read --write --owner ${cfg.s3.bucket} --key helicone-key || true
-        garage bucket allow --read --write --owner prompts --key helicone-key || true
-        garage bucket allow --read --write --owner hql --key helicone-key || true
-        garage bucket allow --read --write --owner llm-cache --key helicone-key || true
+            # Grant permissions
+            garage bucket allow --read --write --owner ${cfg.s3.bucket} --key helicone-key || true
+            garage bucket allow --read --write --owner prompts --key helicone-key || true
+            garage bucket allow --read --write --owner hql --key helicone-key || true
+            garage bucket allow --read --write --owner llm-cache --key helicone-key || true
 
-        # Output key info for configuration
-        garage key info helicone-key
-      '';
-    };
+            # Output key info for configuration
+            garage key info helicone-key
+          '';
+        };
 
     # MinIO
     services.minio = mkIf (cfg.deploymentMode == "hybrid" && cfg.s3.backend == "minio") {
@@ -591,7 +620,8 @@ in {
             proxyPass = "http://127.0.0.1:${toString cfg.port}";
             proxyWebsockets = true;
           };
-        } // optionalAttrs cfg.aiGateway.enable {
+        }
+        // optionalAttrs cfg.aiGateway.enable {
           "/v1" = {
             proxyPass = "http://127.0.0.1:${toString cfg.aiGateway.port}";
             extraConfig = ''
@@ -599,7 +629,8 @@ in {
               proxy_send_timeout 300s;
             '';
           };
-        } // optionalAttrs cfg.cliproxyapi.enable {
+        }
+        // optionalAttrs cfg.cliproxyapi.enable {
           "/proxy-admin" = {
             proxyPass = "http://127.0.0.1:${toString cfg.cliproxyapi.managementPort}";
             extraConfig = ''
@@ -614,8 +645,7 @@ in {
 
     # === FIREWALL ===
     networking.firewall.allowedTCPPorts = mkIf cfg.openFirewall (
-      [ 80 ]
-      ++ optional cfg.nginx.enableSSL 443
+      [ 80 ] ++ optional cfg.nginx.enableSSL 443
     );
 
     # === BACKUPS ===
@@ -633,8 +663,8 @@ in {
       helicone-postgresql = mkIf (cfg.deploymentMode == "hybrid") {
         initialize = true;
         repository = "${cfg.backup.repository}/postgresql";
-        passwordFile = cfg.backup.passwordFile;
-        environmentFile = cfg.backup.environmentFile;
+        inherit (cfg.backup) passwordFile;
+        inherit (cfg.backup) environmentFile;
 
         backupPrepareCommand = ''
           ${pkgs.sudo}/bin/sudo -u postgres ${pkgs.postgresql}/bin/pg_dumpall \
@@ -661,8 +691,8 @@ in {
       helicone-clickhouse = mkIf (cfg.deploymentMode == "hybrid") {
         initialize = true;
         repository = "${cfg.backup.repository}/clickhouse";
-        passwordFile = cfg.backup.passwordFile;
-        environmentFile = cfg.backup.environmentFile;
+        inherit (cfg.backup) passwordFile;
+        inherit (cfg.backup) environmentFile;
 
         backupPrepareCommand = ''
           ${pkgs.clickhouse}/bin/clickhouse-client --query "SYSTEM STOP MERGES" || true
@@ -698,8 +728,8 @@ in {
       helicone-s3 = mkIf (cfg.deploymentMode == "hybrid" && cfg.s3.backend == "garage") {
         initialize = true;
         repository = "${cfg.backup.repository}/garage";
-        passwordFile = cfg.backup.passwordFile;
-        environmentFile = cfg.backup.environmentFile;
+        inherit (cfg.backup) passwordFile;
+        inherit (cfg.backup) environmentFile;
 
         paths = [ "/var/lib/garage/data" ];
         exclude = [ "/var/lib/garage/meta" ];
@@ -722,7 +752,7 @@ in {
       helicone-postgresql = mkIf (cfg.deploymentMode == "hybrid") {
         paths = [ "/var/backup/helicone/postgresql" ];
         repo = cfg.backup.repository;
-        encryption.mode = "none";  # Use passCommand with sops for encryption
+        encryption.mode = "none"; # Use passCommand with sops for encryption
 
         preHook = ''
           ${pkgs.sudo}/bin/sudo -u postgres ${pkgs.postgresql}/bin/pg_dumpall \
@@ -734,9 +764,9 @@ in {
         startAt = cfg.backup.schedule;
 
         prune.keep = {
-          daily = cfg.backup.retention.daily;
-          weekly = cfg.backup.retention.weekly;
-          monthly = cfg.backup.retention.monthly;
+          inherit (cfg.backup.retention) daily;
+          inherit (cfg.backup.retention) weekly;
+          inherit (cfg.backup.retention) monthly;
         };
       };
 
@@ -758,9 +788,9 @@ in {
         startAt = cfg.backup.schedule;
 
         prune.keep = {
-          daily = cfg.backup.retention.daily;
-          weekly = cfg.backup.retention.weekly;
-          monthly = cfg.backup.retention.monthly;
+          inherit (cfg.backup.retention) daily;
+          inherit (cfg.backup.retention) weekly;
+          inherit (cfg.backup.retention) monthly;
         };
       };
     };

@@ -1,6 +1,6 @@
 # agenix secrets configuration
 # Decrypts secrets at activation and places them in /run/secrets/
-{ config, lib, ... }:
+_:
 
 {
   # Age identities for decryption

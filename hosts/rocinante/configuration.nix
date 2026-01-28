@@ -198,10 +198,8 @@ in
   # Enable SSH with TPM PKCS#11 for hardware-backed SSH keys
   security.ssh-tpm = {
     enable = true;
-    users = [ "kosta" ];  # Grant TPM access to kosta
+    users = [ "kosta" ]; # Grant TPM access to kosta
   };
-
-
 
   # Power Management
   services.power-profiles-daemon.enable = false; # doesn't work with TLP.
@@ -276,14 +274,14 @@ in
     embedder = {
       provider = "voyageai";
       model = "voyage-4-lite";
-      apiKeyFile = "/run/secrets/voyage-api-key";  # Create this file with your API key
+      apiKeyFile = "/run/secrets/voyage-api-key"; # Create this file with your API key
     };
 
     # LLM for memory extraction (uses Anthropic)
     llm = {
       provider = "anthropic";
       model = "claude-sonnet-4-20250514";
-      apiKeyFile = "/run/secrets/anthropic-api-key";  # Create this file with your API key
+      apiKeyFile = "/run/secrets/anthropic-api-key"; # Create this file with your API key
     };
   };
 
@@ -362,9 +360,9 @@ in
       name = "antigravity";
       desktopName = "Antigravity IDE";
       comment = "Google Antigravity AI-powered development environment";
-       exec = "${
-         inputs.antigravity.packages.${pkgs.stdenv.hostPlatform.system}.default
-       }/bin/antigravity %U";
+      exec = "${
+        inputs.antigravity.packages.${pkgs.stdenv.hostPlatform.system}.default
+      }/bin/antigravity %U";
       icon = "code";
       terminal = false;
       type = "Application";
@@ -374,10 +372,8 @@ in
       ];
     })
     (writeShellScriptBin "antigravity" ''
-       exec ${
-         inputs.antigravity.packages.${pkgs.stdenv.hostPlatform.system}.default
-       }/bin/antigravity "$@"
-     '')
+      exec ${inputs.antigravity.packages.${pkgs.stdenv.hostPlatform.system}.default}/bin/antigravity "$@"
+    '')
 
     # Shells
     bash # Required by some applications like warp-terminal

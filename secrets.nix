@@ -15,7 +15,10 @@ let
 
   # Key groups
   adminHosts = [ rocinante ];
-  allHosts = [ rocinante gpu-node-1 ];
+  allHosts = [
+    rocinante
+    gpu-node-1
+  ];
   # allUsers = [  ];
   all = allHosts;
   # all = allHosts ++ allUsers;

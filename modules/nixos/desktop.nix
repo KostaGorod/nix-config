@@ -61,9 +61,7 @@
       ];
     })
     (writeShellScriptBin "antigravity" ''
-      exec ${
-        inputs.antigravity.packages.${pkgs.stdenv.hostPlatform.system}.default
-      }/bin/antigravity "$@"
+      exec ${inputs.antigravity.packages.${pkgs.stdenv.hostPlatform.system}.default}/bin/antigravity "$@"
     '')
   ];
 }

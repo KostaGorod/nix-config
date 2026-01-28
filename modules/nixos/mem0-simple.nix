@@ -2,13 +2,19 @@
 # - Single service definition (no dual programs/services)
 # - External Qdrant for persistence and HA
 # - Cleaner configuration options
-{ config, lib, pkgs, inputs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  inputs,
+  ...
+}:
 
 let
   cfg = config.services.mem0;
 
   pkgs-unstable = import inputs.nixpkgs-unstable {
-    system = pkgs.stdenv.hostPlatform.system;
+    inherit (pkgs.stdenv.hostPlatform) system;
     config.allowUnfree = true;
   };
 in
@@ -52,7 +58,11 @@ in
     # Embedder configuration
     embedder = {
       provider = lib.mkOption {
-        type = lib.types.enum [ "openai" "voyageai" "ollama" ];
+        type = lib.types.enum [
+          "openai"
+          "voyageai"
+          "ollama"
+        ];
         default = "voyageai";
         description = "Embedding provider";
       };
@@ -73,7 +83,11 @@ in
     # LLM configuration
     llm = {
       provider = lib.mkOption {
-        type = lib.types.enum [ "openai" "anthropic" "ollama" ];
+        type = lib.types.enum [
+          "openai"
+          "anthropic"
+          "ollama"
+        ];
         default = "anthropic";
         description = "LLM provider for memory extraction";
       };
@@ -100,7 +114,10 @@ in
     systemd.services.mem0 = {
       description = "Mem0 AI Memory MCP Server";
       wantedBy = [ "multi-user.target" ];
-      after = [ "network.target" "qdrant.service" ];
+      after = [
+        "network.target"
+        "qdrant.service"
+      ];
       wants = [ "qdrant.service" ];
 
       environment = {
@@ -124,27 +141,33 @@ in
         PrivateTmp = true;
       };
 
-      script = let
-        embedderKeyEnv = {
-          voyageai = "VOYAGE_API_KEY";
-          openai = "OPENAI_API_KEY";
-          ollama = "";
-        }.${cfg.embedder.provider};
+      script =
+        let
+          embedderKeyEnv =
+            {
+              voyageai = "VOYAGE_API_KEY";
+              openai = "OPENAI_API_KEY";
+              ollama = "";
+            }
+            .${cfg.embedder.provider};
 
-        llmKeyEnv = {
-          anthropic = "ANTHROPIC_API_KEY";
-          openai = "OPENAI_API_KEY";
-          ollama = "";
-        }.${cfg.llm.provider};
-      in ''
-        ${lib.optionalString (cfg.embedder.apiKeyFile != null && embedderKeyEnv != "") ''
-          export ${embedderKeyEnv}="$(cat ${cfg.embedder.apiKeyFile})"
-        ''}
-        ${lib.optionalString (cfg.llm.apiKeyFile != null && llmKeyEnv != "") ''
-          export ${llmKeyEnv}="$(cat ${cfg.llm.apiKeyFile})"
-        ''}
-        exec ${pkgs-unstable.uv}/bin/uvx mem0-mcp --transport sse --host ${cfg.host} --port ${toString cfg.port}
-      '';
+          llmKeyEnv =
+            {
+              anthropic = "ANTHROPIC_API_KEY";
+              openai = "OPENAI_API_KEY";
+              ollama = "";
+            }
+            .${cfg.llm.provider};
+        in
+        ''
+          ${lib.optionalString (cfg.embedder.apiKeyFile != null && embedderKeyEnv != "") ''
+            export ${embedderKeyEnv}="$(cat ${cfg.embedder.apiKeyFile})"
+          ''}
+          ${lib.optionalString (cfg.llm.apiKeyFile != null && llmKeyEnv != "") ''
+            export ${llmKeyEnv}="$(cat ${cfg.llm.apiKeyFile})"
+          ''}
+          exec ${pkgs-unstable.uv}/bin/uvx mem0-mcp --transport sse --host ${cfg.host} --port ${toString cfg.port}
+        '';
     };
 
     # Firewall

@@ -1,7 +1,7 @@
 # Qdrant Vector Database - NixOS module
 # Runs Qdrant as an OCI container for mem0 and other vector storage needs
 # Supports single-node and cluster mode for HA
-{ config, lib, pkgs, ... }:
+{ config, lib, ... }:
 
 let
   cfg = config.services.qdrant;
@@ -78,7 +78,7 @@ in
 
     # Qdrant container
     virtualisation.oci-containers.containers.qdrant = {
-      image = cfg.image;
+      inherit (cfg) image;
       autoStart = true;
 
       ports = [
@@ -94,10 +94,12 @@ in
       environment = {
         QDRANT__SERVICE__HTTP_PORT = "6333";
         QDRANT__SERVICE__GRPC_PORT = "6334";
-      } // lib.optionalAttrs cfg.cluster.enable {
+      }
+      // lib.optionalAttrs cfg.cluster.enable {
         QDRANT__CLUSTER__ENABLED = "true";
         QDRANT__CLUSTER__P2P__PORT = "6335";
-      } // lib.optionalAttrs (cfg.cluster.bootstrapPeer != null) {
+      }
+      // lib.optionalAttrs (cfg.cluster.bootstrapPeer != null) {
         QDRANT__CLUSTER__BOOTSTRAP = cfg.cluster.bootstrapPeer;
       };
 
