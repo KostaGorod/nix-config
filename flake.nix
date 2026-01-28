@@ -32,8 +32,8 @@
       inputs.nixpkgs.follows = "nixpkgs-unstable";
     };
 
-    antigravity-fhs = {
-      url = "github:KostaGorod/nix-config?dir=flakes/antigravity-fhs";
+    antigravity = {
+      url = "github:jacopone/antigravity-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     abacusai-fhs = {

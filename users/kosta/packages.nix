@@ -37,7 +37,7 @@ in
 
     # Terminals & Tools
     warp-terminal
-    inputs.antigravity-fhs.packages.${pkgs.stdenv.hostPlatform.system}.default
+    inputs.antigravity.packages.${pkgs.stdenv.hostPlatform.system}.default
     pkgs-unstable.uv
     fastfetch
     nnn

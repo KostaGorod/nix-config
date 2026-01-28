@@ -305,7 +305,7 @@ in
     shell = pkgs.bash;
     packages = with pkgs; [
       # Antigravity IDE (Google AI-powered development environment)
-      inputs.antigravity-fhs.packages.${pkgs.stdenv.hostPlatform.system}.default
+      inputs.antigravity.packages.${pkgs.stdenv.hostPlatform.system}.default
       pkgs-unstable.chromium
       pkgs-unstable.uv
       # Warp terminal
@@ -362,9 +362,9 @@ in
       name = "antigravity";
       desktopName = "Antigravity IDE";
       comment = "Google Antigravity AI-powered development environment";
-      exec = "${
-        inputs.antigravity-fhs.packages.${pkgs.stdenv.hostPlatform.system}.default
-      }/bin/antigravity %U";
+       exec = "${
+         inputs.antigravity.packages.${pkgs.stdenv.hostPlatform.system}.default
+       }/bin/antigravity %U";
       icon = "code";
       terminal = false;
       type = "Application";
@@ -374,10 +374,10 @@ in
       ];
     })
     (writeShellScriptBin "antigravity" ''
-      exec ${
-        inputs.antigravity-fhs.packages.${pkgs.stdenv.hostPlatform.system}.default
-      }/bin/antigravity "$@"
-    '')
+       exec ${
+         inputs.antigravity.packages.${pkgs.stdenv.hostPlatform.system}.default
+       }/bin/antigravity "$@"
+     '')
 
     # Shells
     bash # Required by some applications like warp-terminal
@@ -385,6 +385,7 @@ in
     # Terminal Editors
     vim # Do not forget to add an editor to edit configuration.nix! The Nano editor is also installed by default.
     helix
+    nixd # Nix language server for IDE support
 
     # GUI
     numix-cursor-theme

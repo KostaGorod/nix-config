@@ -46,11 +46,11 @@
 
     # Antigravity IDE desktop entry
     (makeDesktopItem {
-      name = "antigravity";
+      name = "antigravity-custom";
       desktopName = "Antigravity IDE";
       comment = "Google Antigravity AI-powered development environment";
       exec = "${
-        inputs.antigravity-fhs.packages.${pkgs.stdenv.hostPlatform.system}.default
+        inputs.antigravity.packages.${pkgs.stdenv.hostPlatform.system}.default
       }/bin/antigravity %U";
       icon = "code";
       terminal = false;
@@ -62,7 +62,7 @@
     })
     (writeShellScriptBin "antigravity" ''
       exec ${
-        inputs.antigravity-fhs.packages.${pkgs.stdenv.hostPlatform.system}.default
+        inputs.antigravity.packages.${pkgs.stdenv.hostPlatform.system}.default
       }/bin/antigravity "$@"
     '')
   ];
