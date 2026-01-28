@@ -1,5 +1,6 @@
-# SSH with TPM PKCS#11 authentication module
+# SSH with TPM PKCS#11 and FIDO2/YubiKey authentication module
 # Enables SSH key storage in TPM for hardware-backed security
+# Also configures SSH askpass for FIDO2 PIN prompts
 # Reference: https://wiki.nixos.org/wiki/TPM
 {
   config,
@@ -10,6 +11,7 @@
 
 let
   cfg = config.security.ssh-tpm;
+  askpass = pkgs.lxqt.lxqt-openssh-askpass;
 in
 {
   options.security.ssh-tpm = {
@@ -32,22 +34,39 @@ in
     };
 
     # Configure SSH agent to allow TPM PKCS#11 module loading
+    # askPassword: GUI prompt for FIDO2 PIN (required for verify-required SK keys)
     programs.ssh = {
       startAgent = true;
       agentPKCS11Whitelist = "${config.security.tpm2.pkcs11.package}/lib/*";
+      askPassword = "${askpass}/bin/lxqt-openssh-askpass";
     };
 
-    # Disable conflicting GNOME GCR SSH agent (only one SSH agent can run)
+    # Disable GNOME Keyring / GCR SSH agent; we want OpenSSH's `ssh-agent`.
+    # Otherwise GNOME Keyring exports SSH_AUTH_SOCK=/run/user/$UID/keyring/ssh.
+    services.gnome.gnome-keyring.enable = lib.mkForce false;
     services.gnome.gcr-ssh-agent.enable = lib.mkForce false;
+
+    # Set SSH_AUTH_SOCK globally (PAM), so all shells + GUI apps agree.
+    environment.sessionVariables = {
+      SSH_AUTH_SOCK = "$XDG_RUNTIME_DIR/ssh-agent";
+      SSH_ASKPASS_REQUIRE = "prefer";
+    };
+
+    # Extra safeguard for POSIX shells.
+    environment.extraInit = ''
+      export SSH_AUTH_SOCK="$XDG_RUNTIME_DIR/ssh-agent"
+      export SSH_ASKPASS_REQUIRE="prefer"
+    '';
 
     # Add specified users to tss group for TPM access
     users.users = lib.genAttrs cfg.users (user: {
       extraGroups = [ "tss" ];
     });
 
-    # Only tpm2-pkcs11 needed for tpm2_ptool commands
+    # Packages for TPM and FIDO2 SSH
     environment.systemPackages = [
       pkgs.tpm2-pkcs11
+      askpass  # SSH askpass for FIDO2 PIN prompts
     ];
   };
 }

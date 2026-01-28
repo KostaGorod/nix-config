@@ -1,7 +1,4 @@
 # User services for kosta
 _: {
-  # SSH agent for key management
-  services.ssh-agent = {
-    enable = true;
-  };
+  # SSH agent managed by programs.ssh.startAgent (NixOS ssh-tpm module)
 }

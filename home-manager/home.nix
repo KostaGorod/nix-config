@@ -246,11 +246,7 @@ in
     enableBashIntegration = true;
   };
 
-  # SSH agent for key management (needed by Abacus, VS Code, etc.)
-  services.ssh-agent = {
-    enable = true;
-    enableBashIntegration = true;
-  };
+  # SSH agent managed by programs.ssh.startAgent (NixOS ssh-tpm module)
 
   # Home-manager's zed produces read only `settings.json`, which limits features as changing models or settings at runtime.
   programs.zed-editor = {
