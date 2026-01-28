@@ -19,4 +19,7 @@
   programs.droids.enable = true;
   programs.bitwarden.enable = true;
   programs.abacusai.enable = true;
+
+  # Desktop apps
+  programs.spotify-patched.enable = true;
 }
