@@ -53,8 +53,10 @@ in
     };
 
     # Extra safeguard for POSIX shells.
+    # SSH_ASKPASS must be set here because NixOS defaults it to "" in set-environment
     environment.extraInit = ''
       export SSH_AUTH_SOCK="$XDG_RUNTIME_DIR/ssh-agent"
+      export SSH_ASKPASS="${askpass}/bin/lxqt-openssh-askpass"
       export SSH_ASKPASS_REQUIRE="prefer"
     '';
 
