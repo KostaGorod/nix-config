@@ -128,7 +128,7 @@
   # =============================================================================
   # Tailscale SSH users - mapped via localpart:*@github.com
   # KostaGorod@github.com -> kostagorod
-  # Gonya990@github.com -> gonya990
+  # Gonya990@github.com -> gonya
 
   # Base groups for GPU node users
   users.users =
@@ -161,8 +161,8 @@
         # Auth handled by Tailscale SSH - no password or SSH keys needed
       };
 
-      # Tailscale SSH user: Gonya990@github.com -> gonya990
-      gonya990 = {
+      # Tailscale SSH user: Gonya990@github.com -> gonya
+      gonya = {
         isNormalUser = true;
         extraGroups = gpuUserGroups;
         # Auth handled by Tailscale SSH - no password or SSH keys needed
@@ -226,7 +226,7 @@
       users = [
         "kosta"
         "kostagorod"
-        "gonya990"
+        "gonya"
       ];
       commands = [
         {
