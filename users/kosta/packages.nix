@@ -56,7 +56,6 @@ in
     remmina
 
     # KDE integration
-    kdePackages.kdeconnect-kde
     kdePackages.plasma-browser-integration
 
     # Media

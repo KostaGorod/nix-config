@@ -243,6 +243,9 @@ in
 
   programs.adb.enable = true;
 
+  # KDE Connect - module automatically opens firewall ports 1714-1764
+  programs.kdeconnect.enable = true;
+
   # Enable FactoryAI Droids IDE
   programs.droids.enable = true;
 
@@ -310,7 +313,6 @@ in
       warp-terminal
       _1password-gui
       firefox
-      kdePackages.kdeconnect-kde
       kdePackages.plasma-browser-integration
       pciutils
       remmina # rdp client
