@@ -122,6 +122,8 @@
           pkgs:
           commonDeps
           ++ [
+            # Ensure the bundled CLI can run inside the GUI FHS env too.
+            pkgs.nodejs_20
             abacusai-gui
             abacusai-cli
             pkgs.openssh
@@ -149,11 +151,16 @@
           pkgs:
           commonDeps
           ++ [
+            # The upstream CLI launcher is a Node script and expects `node` on PATH.
+            pkgs.nodejs_20
             abacusai-cli
             pkgs.openssh
             pkgs.git
           ];
-        runScript = "abacusai";
+        # Be explicit about which `abacusai` we execute.
+        # If the host has some other `/usr/bin/abacusai` installed, a plain
+        # `runScript = "abacusai"` can accidentally pick that up.
+        runScript = "${abacusai-cli}/bin/abacusai";
       };
 
     in
