@@ -1,0 +1,61 @@
+name: Merge main into develop
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+  schedule:
+    # Nightly safety net in case main moves without a push event (rare)
+    - cron: "23 2 * * *"
+
+concurrency:
+  group: rebase-develop-onto-main
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+    # Safety: don't run in forks
+    if: github.repository == 'KostaGorod/nix-config'
+
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch branches
+        run: |
+          git fetch origin main develop --prune
+
+      - name: Merge main into develop
+        env:
+          TARGET_BRANCH: develop
+          BASE_BRANCH: main
+        run: |
+          set -euo pipefail
+
+          git checkout "${TARGET_BRANCH}"
+          git reset --hard "origin/${TARGET_BRANCH}"
+
+          before="$(git rev-parse HEAD)"
+
+          # Merge latest main into develop (shared-branch friendly; no history rewrite)
+          git merge --no-edit "origin/${BASE_BRANCH}"
+
+          after="$(git rev-parse HEAD)"
+
+          if [ "${before}" = "${after}" ]; then
+            echo "No changes after merge; nothing to push."
+            exit 0
+          fi
+
+          git push origin "${TARGET_BRANCH}"
