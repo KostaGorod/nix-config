@@ -37,7 +37,8 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     abacusai-fhs = {
-      url = "github:KostaGorod/nix-config?dir=flakes/abacusai-fhs";
+      # Use the local flake so fixes here affect the system immediately.
+      url = "path:./flakes/abacusai-fhs";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     vibe-kanban = {
