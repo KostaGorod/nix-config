@@ -203,6 +203,7 @@ in
 
   # Power Management
   services.power-profiles-daemon.enable = false; # doesn't work with TLP.
+  services.tlp-power-profiles-bridge.enable = true; # COSMIC power UI via TLP
   services.tlp = {
     enable = true;
     settings = {

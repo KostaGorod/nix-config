@@ -21,6 +21,23 @@ in
     ./configuration.nix
   ];
 
+  # Fix upstream systemd ordering cycle:
+  # tlp.service ships with `After=multi-user.target` while also being `WantedBy=multi-user.target`.
+  # When combined with tlp-power-profiles-bridge (WantedBy=multi-user.target, After=tlp.service),
+  # systemd can hit an unbreakable cycle while (re)starting multi-user.target.
+  nixpkgs.overlays = [
+    (_final: prev: {
+      tlp = prev.tlp.overrideAttrs (old: {
+        postInstall = (old.postInstall or "") + ''
+          if [ -e "$out/lib/systemd/system/tlp.service" ]; then
+            substituteInPlace "$out/lib/systemd/system/tlp.service" \
+              --replace "After=multi-user.target NetworkManager.service" "After=NetworkManager.service"
+          fi
+        '';
+      });
+    })
+  ];
+
   # Boot menu label: use git commit info or "dirty" if uncommitted
   system.nixos.label =
     let
@@ -31,14 +48,16 @@ in
     "${gitRev}-${gitDesc}";
 
   # Nix settings
-  nix.settings.experimental-features = [
-    "nix-command"
-    "flakes"
-  ];
   nix = {
+    settings = {
+      experimental-features = [
+        "nix-command"
+        "flakes"
+      ];
+      auto-optimise-store = true;
+    };
     registry = lib.mapAttrs (_: value: { flake = value; }) inputs;
     nixPath = lib.mapAttrsToList (key: value: "${key}=${value.to.path}") config.nix.registry;
-    settings.auto-optimise-store = true;
   };
   nixpkgs.config.allowUnfree = lib.mkForce true;
   nixpkgs.config.allowUnfreePredicate =
