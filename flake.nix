@@ -39,7 +39,8 @@
     abacusai-fhs = {
       # Use the local flake so fixes here affect the system immediately.
       url = "path:./flakes/abacusai-fhs";
-      inputs.nixpkgs.follows = "nixpkgs";
+      # Keep it aligned with our nixos-unstable pin.
+      inputs.nixpkgs.follows = "nixpkgs-unstable";
     };
     vibe-kanban = {
       url = "github:KostaGorod/nix-config?dir=flakes/vibe-kanban";
