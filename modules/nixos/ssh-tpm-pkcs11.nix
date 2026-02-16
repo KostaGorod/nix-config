@@ -48,7 +48,8 @@ in
 
     # Set SSH_AUTH_SOCK globally (PAM), so all shells + GUI apps agree.
     environment.sessionVariables = {
-      SSH_AUTH_SOCK = "$XDG_RUNTIME_DIR/ssh-agent";
+      # pam_env requires expandable variables to be wrapped in ${...}
+      SSH_AUTH_SOCK = "\${XDG_RUNTIME_DIR}/ssh-agent";
       SSH_ASKPASS_REQUIRE = "prefer";
     };
 
