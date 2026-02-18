@@ -1,4 +1,4 @@
-name: Merge main into develop
+name: Rebase develop onto main
 
 on:
   push:
@@ -16,7 +16,7 @@ permissions:
   contents: write
 
 jobs:
-  merge:
+  sync:
     runs-on: ubuntu-latest
     # Safety: don't run in forks
     if: github.repository == 'KostaGorod/nix-config'
@@ -36,7 +36,7 @@ jobs:
         run: |
           git fetch origin main develop --prune
 
-      - name: Merge main into develop
+      - name: Sync develop with main (rebase)
         env:
           TARGET_BRANCH: develop
           BASE_BRANCH: main
@@ -46,16 +46,23 @@ jobs:
           git checkout "${TARGET_BRANCH}"
           git reset --hard "origin/${TARGET_BRANCH}"
 
-          before="$(git rev-parse HEAD)"
-
-          # Merge latest main into develop (shared-branch friendly; no history rewrite)
-          git merge --no-edit "origin/${BASE_BRANCH}"
-
-          after="$(git rev-parse HEAD)"
-
-          if [ "${before}" = "${after}" ]; then
-            echo "No changes after merge; nothing to push."
+          # 1) If develop already contains main, nothing to do.
+          if git merge-base --is-ancestor "origin/${BASE_BRANCH}" "origin/${TARGET_BRANCH}"; then
+            echo "${TARGET_BRANCH} already contains ${BASE_BRANCH}; nothing to do."
             exit 0
           fi
 
-          git push origin "${TARGET_BRANCH}"
+          # 2) If develop is strictly behind main (no unique commits), fast-forward.
+          if git merge-base --is-ancestor "origin/${TARGET_BRANCH}" "origin/${BASE_BRANCH}"; then
+            echo "Fast-forwarding ${TARGET_BRANCH} to ${BASE_BRANCH}."
+            git merge --ff-only "origin/${BASE_BRANCH}"
+            git push origin "${TARGET_BRANCH}"
+            exit 0
+          fi
+
+          # 3) Otherwise rebase develop onto main (rewrites develop history).
+          echo "Rebasing ${TARGET_BRANCH} onto ${BASE_BRANCH}."
+          git rebase "origin/${BASE_BRANCH}"
+
+          # Rebase rewrites history; force-with-lease is the safest push mode.
+          git push --force-with-lease origin "${TARGET_BRANCH}"
