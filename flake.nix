@@ -26,6 +26,7 @@
     };
 
     zen-browser.url = "github:0xc000022070/zen-browser-flake";
+    zen-browser.inputs.nixpkgs.follows = "nixpkgs";
 
     nix-ai-tools = {
       url = "github:numtide/nix-ai-tools";
@@ -35,12 +36,6 @@
     antigravity = {
       url = "github:jacopone/antigravity-nix";
       inputs.nixpkgs.follows = "nixpkgs";
-    };
-    abacusai-fhs = {
-      # Use the local flake so fixes here affect the system immediately.
-      url = "path:./flakes/abacusai-fhs";
-      # Keep it aligned with our nixos-unstable pin.
-      inputs.nixpkgs.follows = "nixpkgs-unstable";
     };
     vibe-kanban = {
       url = "github:KostaGorod/nix-config?dir=flakes/vibe-kanban";

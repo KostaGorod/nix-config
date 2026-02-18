@@ -1,21 +1,5 @@
 {
   "nodes": {
-    "abacusai-fhs": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs-unstable"
-        ]
-      },
-      "locked": {
-        "path": "./flakes/abacusai-fhs",
-        "type": "path"
-      },
-      "original": {
-        "path": "./flakes/abacusai-fhs",
-        "type": "path"
-      },
-      "parent": []
-    },
     "agenix": {
       "inputs": {
         "darwin": "darwin",
@@ -311,25 +295,8 @@
         "type": "github"
       }
     },
-    "nixpkgs_3": {
-      "locked": {
-        "lastModified": 1771008912,
-        "narHash": "sha256-gf2AmWVTs8lEq7z/3ZAsgnZDhWIckkb+ZnAo5RzSxJg=",
-        "owner": "nixos",
-        "repo": "nixpkgs",
-        "rev": "a82ccc39b39b621151d6732718e3e250109076fa",
-        "type": "github"
-      },
-      "original": {
-        "owner": "nixos",
-        "ref": "nixos-unstable",
-        "repo": "nixpkgs",
-        "type": "github"
-      }
-    },
     "root": {
       "inputs": {
-        "abacusai-fhs": "abacusai-fhs",
         "agenix": "agenix",
         "antigravity": "antigravity",
         "disko": "disko",
@@ -474,7 +441,9 @@
     "zen-browser": {
       "inputs": {
         "home-manager": "home-manager_3",
-        "nixpkgs": "nixpkgs_3"
+        "nixpkgs": [
+          "nixpkgs"
+        ]
       },
       "locked": {
         "lastModified": 1771247135,
