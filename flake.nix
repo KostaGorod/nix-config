@@ -35,16 +35,9 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # cosmic-unstable = {
-    #   url = "github:lilyinstarlight/nixos-cosmic";
-    #   inputs.nixpkgs.follows = "nixpkgs-unstable";
-    # };
-
     kimi-cli.url = "github:MoonshotAI/kimi-cli";
 
     ultimate-bug-scanner.url = "github:Dicklesworthstone/ultimate_bug_scanner";
-
-    rke2.url = "github:numtide/nixos-rke2";
 
     agenix = {
       url = "github:ryantm/agenix";
@@ -98,14 +91,12 @@
             ./modules/nixos/secrets.nix
             ./profiles/workstation.nix
             ./de/plasma6.nix
-            # inputs.cosmic-unstable.nixosModules.default
             ./de/cosmic.nix
             ./modules/nixos/utils.nix
             ./modules/nixos/cliphist.nix
             ./modules/nixos/spotify.nix
             ./modules/nixos/moonlight-qt.nix
             ./modules/nixos/tlp-power-profiles-bridge.nix
-            #./modules/nixos/rke2.nix
             inputs.home-manager.nixosModules.home-manager
             {
               home-manager = {
@@ -119,18 +110,6 @@
           ];
         };
 
-        nixosConfigurations.gpu-node-1 = nixpkgs.lib.nixosSystem {
-          system = "x86_64-linux";
-          specialArgs = { inherit inputs; };
-          modules = [
-            ./hosts/gpu-node-1/configuration.nix
-            inputs.disko.nixosModules.disko
-            inputs.agenix.nixosModules.default
-            ./modules/nixos/secrets.nix
-            ./hosts/gpu-node-1/disko-config.nix
-            ./hosts/gpu-node-1/hardware-configuration.nix
-          ];
-        };
       };
     };
 }

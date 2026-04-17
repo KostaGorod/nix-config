@@ -6,9 +6,6 @@
   pkgs,
   ...
 }:
-let
-  gpu-node-tailscale-ip = "100.102.123.22";
-in
 {
 
   imports = [
@@ -18,9 +15,14 @@ in
     ../../modules/nixos/ssh-tpm-pkcs11.nix
   ];
 
+  services.tailscale-mesh.enable = true;
+
   # Binary caches (cosmic, numtide) — base nix settings in default.nix
   nix.settings = {
-    trusted-users = [ "root" "kosta" ];
+    trusted-users = [
+      "root"
+      "kosta"
+    ];
     substituters = [
       "https://cache.nixos.org/"
       "https://cosmic.cachix.org/"
@@ -171,32 +173,18 @@ in
   ];
   services.teamviewer.enable = true;
 
-  # Firewall enabled with strict default-deny policy
-  # Tailscale in separate zone with granular access control
+  # Stateful default-deny firewall; Tailscale gets its own allow rules.
   networking.firewall = {
     enable = true;
 
-    # Tailscale zone: Allow basic connectivity, but restrict specific ports
     extraCommands = ''
-      # Allow established connections (stateful firewall)
       iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-
-      # Allow Tailscale ICMP (ping, network discovery)
       iptables -A INPUT -i tailscale0 -p icmp -j ACCEPT
-
-      # Allow port 9898 only from specific IP (not entire Tailscale network)
-      iptables -A INPUT -p tcp -s ${gpu-node-tailscale-ip} --dport 9898 -j ACCEPT
-
-      # Allow other necessary Tailscale traffic (add as needed)
-      # Examples:
-      # iptables -A INPUT -i tailscale0 -p tcp --dport 22 -j ACCEPT  # SSH via Tailscale
-      # iptables -A INPUT -i tailscale0 -p tcp --dport 443 -j ACCEPT  # HTTPS via Tailscale
     '';
 
     extraStopCommands = ''
       iptables -D INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT 2>/dev/null || true
       iptables -D INPUT -i tailscale0 -p icmp -j ACCEPT 2>/dev/null || true
-      iptables -D INPUT -p tcp -s ${gpu-node-tailscale-ip} --dport 9898 -j ACCEPT 2>/dev/null || true
     '';
   };
 

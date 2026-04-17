@@ -23,10 +23,5 @@ _:
       #group = "mem0";
       mode = "0400";
     };
-
-    github-runner-token = {
-      file = ../../secrets/github-runner-token.age;
-      mode = "0400";
-    };
   };
 }
