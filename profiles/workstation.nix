@@ -8,6 +8,8 @@
     ../modules/nixos/tailscale.nix
     ../modules/nixos/opencode.nix
     ../modules/nixos/claude-code.nix
+    ../modules/nixos/gemini-cli.nix
+    ../modules/nixos/kimi-cli.nix
     ../modules/nixos/droids.nix
     ../modules/nixos/bitwarden.nix
     ../modules/nixos/abacusai.nix
@@ -16,6 +18,8 @@
   # Enable AI tools
   programs.opencode.enable = true;
   programs.claude-code.enable = true;
+  programs.gemini-cli.enable = true;
+  programs.kimi-cli.enable = true;
   programs.droids.enable = true;
   programs.bitwarden.enable = true;
   programs.abacusai.enable = true;

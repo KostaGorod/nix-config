@@ -9,9 +9,9 @@
 let
   cfg = config.programs.opencode;
 
-  # Import from nix-ai-tools
-  inherit (inputs) nix-ai-tools;
-  opencode-pkg = nix-ai-tools.packages.${pkgs.stdenv.hostPlatform.system}.opencode;
+  # Import from llm-agents.nix
+  inherit (inputs) llm-agents;
+  opencode-pkg = llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.opencode;
 
   opencode-wrapper = pkgs.symlinkJoin {
     name = "opencode-wrapper";

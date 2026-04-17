@@ -29,7 +29,7 @@ in
     obsidian
     todoist-electron
     onlyoffice-desktopeditors
-    _1password-gui
+    # _1password-gui
 
     # Communication
     discord
@@ -39,10 +39,12 @@ in
     warp-terminal
     inputs.antigravity.packages.${pkgs.stdenv.hostPlatform.system}.default
     pkgs-unstable.uv
+    pkgs-unstable.gws
+    pkgs-unstable.google-cloud-sdk
+    pkgs-unstable.gws
     fastfetch
     nnn
     glow
-    pkgs-unstable.openterface-qt
 
     # Git
     git-credential-oauth

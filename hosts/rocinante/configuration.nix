@@ -35,7 +35,6 @@ in
     ../../modules/nixos/opencode.nix # OpenCode AI coding agent
     ../../modules/nixos/claude-code.nix # Claude Code CLI
     ../../modules/nixos/mem0.nix # Mem0 AI memory layer
-    # ../../modules/nixos/codex.nix # Numtide Codex AI assistant (temporarily disabled)
     ../../modules/nixos/bitwarden.nix # Bitwarden password manager (unstable)
     ../../modules/nixos/ssh-tpm-pkcs11.nix # SSH with TPM PKCS#11 key storage
 
@@ -46,13 +45,16 @@ in
   ];
 
   nix.settings = {
+    trusted-users = [ "root" "kosta" ];
     substituters = [
       "https://cache.nixos.org/"
       "https://cosmic.cachix.org/"
+      "https://cache.numtide.com"
     ];
     trusted-public-keys = [
       "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
       "cosmic.cachix.org-1:Dya9IyXD4xdBehWjX818gw+s7maCeSJ8844iQ80x1M0="
+      "niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g="
     ];
     experimental-features = [
       "nix-command"
@@ -71,7 +73,6 @@ in
     builtins.elem (lib.getName pkg) [
       "claude-code"
       "droid"
-      # "codex" # temporarily disabled
     ];
 
   # Bootloader.
@@ -252,9 +253,6 @@ in
 
   # Enable Anthropic Claude Code CLI
   programs.claude-code.enable = true;
-
-  # Enable Numtide Codex AI assistant (temporarily disabled)
-  # programs.codex.enable = true;
 
   # Enable OpenCode AI coding agent
   programs.opencode.enable = true;

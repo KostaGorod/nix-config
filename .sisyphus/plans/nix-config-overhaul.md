@@ -70,7 +70,6 @@ mkdir -p profiles
 - `modules/opencode.nix`
 - `modules/claude-code.nix`
 - `modules/droids.nix`
-- `modules/codex.nix`
 - `modules/abacusai.nix`
 **Pattern**: Single module with sub-options
 ```nix

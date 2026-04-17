@@ -9,9 +9,9 @@
 let
   cfg = config.programs.droids;
 
-  # Import from nix-ai-tools
-  inherit (inputs) nix-ai-tools;
-  droids-pkg = nix-ai-tools.packages.${pkgs.stdenv.hostPlatform.system}.droid;
+  # Import from llm-agents.nix
+  inherit (inputs) llm-agents;
+  droids-pkg = llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.droid;
 in
 {
   options.programs.droids = {

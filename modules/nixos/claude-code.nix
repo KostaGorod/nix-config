@@ -9,9 +9,9 @@
 let
   cfg = config.programs.claude-code;
 
-  # Import from nix-ai-tools
-  inherit (inputs) nix-ai-tools;
-  claude-code-pkg = nix-ai-tools.packages.${pkgs.stdenv.hostPlatform.system}.claude-code;
+  # Import from llm-agents.nix
+  inherit (inputs) llm-agents;
+  claude-code-pkg = llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.claude-code;
 in
 {
   options.programs.claude-code = {

@@ -6,7 +6,8 @@
       "args": [
         "run", "github:utensils/mcp-nixos", "--"
       ],
-      "env": {}
+      "env": {},
+      "timeout": 60
     }
   }
 }

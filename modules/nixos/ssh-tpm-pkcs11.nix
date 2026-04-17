@@ -41,9 +41,14 @@ in
       askPassword = "${askpass}/bin/lxqt-openssh-askpass";
     };
 
-    # Disable GNOME Keyring / GCR SSH agent; we want OpenSSH's `ssh-agent`.
-    # Otherwise GNOME Keyring exports SSH_AUTH_SOCK=/run/user/$UID/keyring/ssh.
-    services.gnome.gnome-keyring.enable = lib.mkForce false;
+    # Keep OpenSSH's `ssh-agent` authoritative.
+    # GNOME Keyring is useful for Secret Service (org.freedesktop.secrets), so
+    # don't globally disable it here; instead, make sure it doesn't provide an
+    # SSH agent socket by default.
+    #services.gnome.gnome-keyring.components = lib.mkDefault [
+    #  "secrets"
+    #  "pkcs11"
+    #];
     services.gnome.gcr-ssh-agent.enable = lib.mkForce false;
 
     # Set SSH_AUTH_SOCK globally (PAM), so all shells + GUI apps agree.

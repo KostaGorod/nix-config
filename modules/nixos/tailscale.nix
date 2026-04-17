@@ -5,6 +5,7 @@
   services.tailscale = {
     enable = true;
     package = pkgs.tailscale;
+    useRoutingFeatures = "client"; # Accept subnet routes from other nodes
   };
 
   # Enable local DNS resolver

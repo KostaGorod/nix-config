@@ -86,7 +86,6 @@ in
 
     # productivity
     glow # markdown previewer in terminal
-    pkgs-unstable.openterface-qt # GUI for openterface KVM
 
     # k8s and stuff
     kubectl
@@ -218,7 +217,6 @@ in
       pkgs.yaml-language-server
       pkgs.marksman
       pkgs.bash-language-server
-      # pkgs.
     ];
   };
 

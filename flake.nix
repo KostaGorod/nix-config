@@ -28,17 +28,10 @@
     zen-browser.url = "github:0xc000022070/zen-browser-flake";
     zen-browser.inputs.nixpkgs.follows = "nixpkgs";
 
-    nix-ai-tools = {
-      url = "github:numtide/nix-ai-tools";
-      inputs.nixpkgs.follows = "nixpkgs-unstable";
-    };
+    llm-agents.url = "github:numtide/llm-agents.nix";
 
     antigravity = {
       url = "github:jacopone/antigravity-nix";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-    vibe-kanban = {
-      url = "github:KostaGorod/nix-config?dir=flakes/vibe-kanban";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -47,7 +40,11 @@
     #   inputs.nixpkgs.follows = "nixpkgs-unstable";
     # };
 
+    kimi-cli.url = "github:MoonshotAI/kimi-cli";
+
     ultimate-bug-scanner.url = "github:Dicklesworthstone/ultimate_bug_scanner";
+
+    rke2.url = "github:numtide/nixos-rke2";
 
     agenix = {
       url = "github:ryantm/agenix";
@@ -108,6 +105,7 @@
             ./modules/nixos/spotify.nix
             ./modules/nixos/moonlight-qt.nix
             ./modules/nixos/tlp-power-profiles-bridge.nix
+            #./modules/nixos/rke2.nix
             inputs.home-manager.nixosModules.home-manager
             {
               home-manager = {
