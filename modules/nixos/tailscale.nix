@@ -1,62 +1,71 @@
-{ pkgs, ... }:
-
 {
-  # Tailscale VPN service configuration
-  services.tailscale = {
-    enable = true;
-    package = pkgs.tailscale;
-    useRoutingFeatures = "client"; # Accept subnet routes from other nodes
-  };
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 
-  # Enable local DNS resolver
-  networking.resolvconf.useLocalResolver = true;
+let
+  cfg = config.services.tailscale-mesh;
+in
+{
+  options.services.tailscale-mesh = {
+    enable = lib.mkEnableOption "Tailscale client with MagicDNS split-DNS";
 
-  # Configure dnsmasq to work with Tailscale MagicDNS (split DNS)
-  services.dnsmasq = {
-    enable = true;
-    settings = {
-      # Listen on localhost
-      listen-address = "127.0.0.1";
-      # Bind to specific interfaces to prevent conflicts
-      bind-interfaces = true;
-      # Cache size for better performance
-      cache-size = "1000";
-      # Default upstream DNS servers for regular queries (Cloudflare and Google)
-      server = [
+    magicDnsDomains = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = [
+        "ts.net"
+        "int.toxiclabs.net"
+        "toxiclabs.local.lan"
+      ];
+      description = "Domains routed to Tailscale MagicDNS (100.100.100.100).";
+    };
+
+    upstreamDns = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = [
         "1.1.1.1"
         "8.8.8.8"
-        # Route all Tailscale domains to MagicDNS (covers all tailnets)
-        "/ts.net/100.100.100.100"
-        "/int.toxiclabs.net/100.100.100.100"
-        "/toxiclabs.local.lan/100.100.100.100"
       ];
-      # Strict order - use servers in the order specified
-      strict-order = true;
+      description = "Upstream DNS for non-Tailscale queries.";
     };
   };
 
-  # Environment packages for Tailscale management
-  environment.systemPackages = with pkgs; [
-    tailscale
-  ];
+  config = lib.mkIf cfg.enable {
+    services.tailscale = {
+      enable = true;
+      package = pkgs.tailscale;
+      useRoutingFeatures = "client";
+    };
 
-  # Network configuration
-  networking.firewall = {
-    # Allow Tailscale traffic
-    trustedInterfaces = [ "tailscale0" ];
-    # Allow specific ports if needed
-    allowedUDPPorts = [ 41641 ]; # Default Tailscale port
-  };
+    networking.resolvconf.useLocalResolver = true;
 
-  # SystemD service configuration for better integration
-  systemd.services.tailscaled = {
-    # Ensure tailscaled starts after network is ready
-    wants = [ "network-pre.target" ];
-    after = [ "network-pre.target" ];
-    # Restart on failure
-    serviceConfig = {
-      Restart = "on-failure";
-      RestartSec = "5";
+    services.dnsmasq = {
+      enable = true;
+      settings = {
+        listen-address = "127.0.0.1";
+        bind-interfaces = true;
+        cache-size = "1000";
+        server = cfg.upstreamDns ++ map (d: "/${d}/100.100.100.100") cfg.magicDnsDomains;
+        strict-order = true;
+      };
+    };
+
+    environment.systemPackages = [ pkgs.tailscale ];
+
+    networking.firewall = {
+      trustedInterfaces = [ "tailscale0" ];
+      allowedUDPPorts = [ 41641 ];
+    };
+
+    systemd.services.tailscaled = {
+      wants = [ "network-pre.target" ];
+      after = [ "network-pre.target" ];
+      serviceConfig = {
+        Restart = "on-failure";
+        RestartSec = "5";
+      };
     };
   };
 }
