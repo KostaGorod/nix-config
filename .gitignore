@@ -26,3 +26,11 @@ Thumbs.db
 
 # Git worktrees
 .worktrees/
+
+# Python / tool caches
+.ruff_cache/
+.mypy_cache/
+__pycache__/
+
+# Local planning scratch
+.sisyphus/
