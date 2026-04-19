@@ -19,6 +19,15 @@ _: {
     };
     bashrcExtra = ''
       export PATH="$PATH:$HOME/bin:$HOME/.local/bin"
+
+      # pam_gnome_keyring (enabled for Bitwarden Secret Service) rewrites
+      # SSH_AUTH_SOCK to $XDG_RUNTIME_DIR/keyring/ssh during the PAM session,
+      # but the keyring's ssh component isn't actually started — so the
+      # socket doesn't exist. Restore the path to OpenSSH's agent here so
+      # non-login shells spawned from the graphical session use it.
+      if [ -n "$XDG_RUNTIME_DIR" ]; then
+        export SSH_AUTH_SOCK="$XDG_RUNTIME_DIR/ssh-agent"
+      fi
     '';
   };
 
