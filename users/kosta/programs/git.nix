@@ -7,7 +7,7 @@
     enable = true;
     settings = {
       user.name = "Kosta Gorod";
-      user.email = "korolx147@gmail.com";
+      user.email = "35299380+KostaGorod@users.noreply.github.com";
       credential.helper = lib.mkBefore [
         "${pkgs.gitFull.override { withLibsecret = true; }}/bin/git-credential-libsecret"
       ];
