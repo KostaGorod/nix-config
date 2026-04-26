@@ -52,8 +52,10 @@ in
     services.gnome.gcr-ssh-agent.enable = lib.mkForce false;
 
     # Set SSH_AUTH_SOCK globally (PAM), so all shells + GUI apps agree.
+    # pam_env requires `${VAR}` syntax; `$VAR` is treated as a literal string
+    # and ends up propagating an unexpanded value into the systemd user env.
     environment.sessionVariables = {
-      SSH_AUTH_SOCK = "$XDG_RUNTIME_DIR/ssh-agent";
+      SSH_AUTH_SOCK = "\${XDG_RUNTIME_DIR}/ssh-agent";
       SSH_ASKPASS_REQUIRE = "prefer";
     };
 
@@ -64,6 +66,27 @@ in
       export SSH_ASKPASS="${askpass}/bin/lxqt-openssh-askpass"
       export SSH_ASKPASS_REQUIRE="prefer"
     '';
+
+    # The upstream ssh-agent user unit (from programs.ssh.startAgent) hardcodes
+    # `DISPLAY=fake` and `SSH_ASKPASS=""`, which disables any GUI askpass and
+    # breaks FIDO2 PIN entry for `verify-required` sk keys (the agent silently
+    # treats the missing PIN as an incorrect one and refuses to sign).
+    # Override so the agent uses the real askpass and inherits the display env.
+    # Also tie the lifecycle to graphical-session.target: the default unit is
+    # pulled in by default.target, which activates before cosmic-session
+    # imports DISPLAY/WAYLAND_DISPLAY — so PassEnvironment would otherwise
+    # capture nothing at boot.
+    systemd.user.services.ssh-agent = {
+      wantedBy = lib.mkForce [ "graphical-session.target" ];
+      after = [ "graphical-session.target" ];
+      serviceConfig = {
+        Environment = lib.mkForce [
+          "SSH_ASKPASS=${askpass}/bin/lxqt-openssh-askpass"
+          "SSH_ASKPASS_REQUIRE=prefer"
+        ];
+        PassEnvironment = "DISPLAY WAYLAND_DISPLAY XAUTHORITY DBUS_SESSION_BUS_ADDRESS XDG_RUNTIME_DIR";
+      };
+    };
 
     # Add specified users to tss group for TPM access
     users.users = lib.genAttrs cfg.users (_user: {
