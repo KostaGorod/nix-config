@@ -4,7 +4,7 @@ Fully declarative NixOS configuration for my daily-driver ThinkPad (`rocinante`)
 
 Plasma 6 and COSMIC side by side, hardware-backed SSH (TPM + YubiKey + fingerprint),
 Tailscale mesh, agenix-managed secrets, and a growing set of AI coding tools
-(Claude Code, OpenCode, Gemini CLI, Kimi, Droids, Abacus.AI DeepAgent) on top of a
+(Claude Code, OpenCode, and Droids) on top of a
 self-hosted Mem0 memory layer backed by Qdrant. Power management is tuned per-profile
 with TLP, battery-health thresholds, and runtime PM tweaks.
 

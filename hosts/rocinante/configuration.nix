@@ -120,7 +120,7 @@
   users.defaultUserShell = pkgs.fish;
   programs.kdeconnect.enable = true;
 
-  # droids, claude-code, opencode, abacusai, bitwarden enabled via profiles/workstation.nix
+  # droids, claude-code, opencode, and bitwarden enabled via profiles/workstation.nix
 
   # Enable Mem0 AI memory layer for persistent agent memory (self-hosted)
   programs.mem0 = {

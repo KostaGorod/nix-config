@@ -40,11 +40,9 @@ nix-config/
 │       ├── opencode.nix         # OpenCode MCP
 │       ├── claude-code.nix      # Claude Code
 │       ├── droids.nix           # Droids agents
-│       ├── bitwarden.nix        # Bitwarden
-│       └── abacusai.nix         # AbacusAI tools
+│       └── bitwarden.nix        # Bitwarden
 └── flakes/                     # Nested flakes (isolated environments)
     ├── antigravity-fhs/
-    ├── abacusai-fhs/
     ├── vibe-kanban/
     └── cosmic-unstable/
 ```

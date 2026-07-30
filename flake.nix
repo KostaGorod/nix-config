@@ -30,8 +30,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    kimi-cli.url = "github:MoonshotAI/kimi-cli";
-
     ultimate-bug-scanner.url = "github:Dicklesworthstone/ultimate_bug_scanner";
 
     agenix = {

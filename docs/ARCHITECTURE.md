@@ -60,7 +60,7 @@ flowchart TB
   end
 
   subgraph ai["AI tooling"]
-    cli["claude-code, opencode,<br/>gemini, kimi, droids,<br/>abacusai"]
+    cli["claude-code, opencode,<br/>droids"]
     mem0["mem0<br/>MCP server"]
     qdrant["qdrant<br/>vector store"]
   end
@@ -88,7 +88,7 @@ flowchart TB
   `*.ts.net` and private tailnet domains resolve through MagicDNS while the
   rest goes to 1.1.1.1. No systemd-resolved tug-of-war.
 - **Standalone packaging flakes in `flakes/`** for tools not in nixpkgs
-  (Abacus.AI, Antigravity, Claude Code, Droids, Vibe Kanban). Independent
+  (Antigravity, Claude Code, Droids, Vibe Kanban). Independent
   `flake.lock`s let them update without churning the main flake.
 - **Treefmt + CI.** `nix flake check` runs `nixfmt`, `deadnix`, and `statix`
   via `treefmt-nix`. CI (`.github/workflows/test.yml`) builds the host and

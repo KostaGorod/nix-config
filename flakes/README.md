@@ -6,7 +6,6 @@ independent flake with its own `flake.nix` and `flake.lock`, pinned to
 
 | Flake              | Tool                                       |
 |--------------------|--------------------------------------------|
-| `abacusai-fhs/`    | Abacus.AI DeepAgent desktop app + CLI      |
 | `antigravity-fhs/` | Google Antigravity agentic IDE             |
 | `claude-code/`     | Anthropic Claude Code CLI (npm-packaged)   |
 | `droids/`          | FactoryAI Droids CLI                       |
@@ -16,12 +15,11 @@ independent flake with its own `flake.nix` and `flake.lock`, pinned to
 
 ```sh
 nix run ./flakes/droids
-nix run ./flakes/abacusai-fhs#cli
 ```
 
 The main flake consumes `antigravity` via its upstream input; the rest are
 either run ad-hoc or referenced from the relevant module under
-`modules/nixos/` (e.g. `abacusai.nix`, `droids.nix`).
+`modules/nixos/` (e.g. `droids.nix`).
 
 ## Updating
 
