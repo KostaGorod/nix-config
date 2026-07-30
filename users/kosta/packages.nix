@@ -6,11 +6,15 @@ let
     inherit (pkgs.stdenv.hostPlatform) system;
     config.allowUnfree = true;
   };
+  orca-ide = pkgs.callPackage ../../packages/orca-ide { };
 in
 {
-  home.packages = with pkgs; [
+  environment.systemPackages = with pkgs; [
     # IDEs & Editors
     pkgs-unstable.zed-editor
+    pkgs.helix
+    orca-ide
+    pkgs-unstable.herdr
     # code-cursor
 
     # Browsers
@@ -39,6 +43,7 @@ in
     warp-terminal
     pkgs-unstable.uv
     pkgs-unstable.gws
+    pkgs.fuzzel
     pkgs-unstable.google-cloud-sdk
     fastfetch
     nnn
@@ -70,5 +75,8 @@ in
 
     # Nix tools
     nix-output-monitor
+
+    # Shell completions
+    pkgs-unstable.carapace
   ];
 }

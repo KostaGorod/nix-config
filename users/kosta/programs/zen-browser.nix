@@ -1,15 +1,8 @@
 # Zen Browser configuration
 # Disables built-in password manager to use Bitwarden instead
-_:
+{ pkgs, ... }:
 let
-  # Zen Browser stores profiles in ~/.zen/ (Firefox-like structure)
-  # Profile name is dynamic but can be found via profiles.ini
-  zenProfileDir = ".zen/qodg0ptz.Default Profile";
-in
-{
-  # Create user.js with password manager settings disabled
-  # user.js is read on browser startup and overrides prefs
-  home.file."${zenProfileDir}/user.js".text = ''
+  userJsContent = ''
     // Managed by NixOS - Disable built-in password manager
     // Use Bitwarden extension instead
 
@@ -31,4 +24,20 @@ in
     // Disable "save password" infobar completely
     user_pref("signon.rememberSignons.visibilityToggle", false);
   '';
+in
+{
+  systemd.user.services.zen-browser-config = {
+    description = "Zen Browser config for password manager";
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      ExecStart = "${pkgs.writeShellScriptBin "zen-browser-config" ''
+                mkdir -p ~/.zen/qodg0ptz.Default\ Profile
+                cat > ~/.zen/qodg0ptz.Default\ Profile/user.js << 'EOF'
+        ${userJsContent}
+        EOF
+      ''}/bin/zen-browser-config";
+    };
+    wantedBy = [ "default.target" ];
+  };
 }

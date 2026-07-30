@@ -1,25 +1,29 @@
 # Git configuration for kosta
-{ pkgs, lib, ... }:
+{ pkgs, inputs, ... }:
+let
+  pkgs-unstable = import inputs.nixpkgs-unstable {
+    inherit (pkgs.stdenv.hostPlatform) system;
+    config.allowUnfree = true;
+  };
+in
 {
-  # Git with libsecret credential storage
   programs.git = {
     package = pkgs.gitFull;
     enable = true;
-    settings = {
-      user.name = "Kosta Gorod";
-      user.email = "35299380+KostaGorod@users.noreply.github.com";
-      credential.helper = lib.mkBefore [
-        "${pkgs.gitFull.override { withLibsecret = true; }}/bin/git-credential-libsecret"
-      ];
-    };
   };
 
-  # OAuth support for git
-  programs.git-credential-oauth.enable = true;
+  environment.etc."gitconfig".text = ''
+    [user]
+      name = Kosta Gorod
+      email = 35299380+KostaGorod@users.noreply.github.com
+
+    [credential]
+      helper = ${pkgs.gitFull.override { withLibsecret = true; }}/bin/git-credential-libsecret
+
+    [core]
+    editor = helix
+  '';
 
   # GitHub CLI
-  programs.gh = {
-    enable = true;
-    gitCredentialHelper.enable = true;
-  };
+  environment.systemPackages = [ pkgs-unstable.gh ];
 }

@@ -18,6 +18,7 @@ in
     ./hardware-configuration.nix
     ../../modules/nixos/fingerprint.nix
     ../../modules/nixos/yubikey.nix
+    ../../modules/nixos/kernel.nix
     ./configuration.nix
   ];
 
@@ -89,7 +90,7 @@ in
 
   # Virtualization
   virtualisation.docker.enable = true;
-  virtualisation.docker.package = pkgs.docker_28;
+  virtualisation.docker.package = pkgs.docker_29;
 
   # Hardware
   hardware.bluetooth.enable = true;
@@ -129,9 +130,6 @@ in
   environment.variables.EDITOR = "hx";
   environment.sessionVariables = {
     LIBVA_DRIVER_NAME = "iHD";
-    # Fix cross-device link error for Claude Code plugin installation
-    # Use ~/.claude/tmp instead of /tmp (which may be on tmpfs)
-    TMPDIR = "$HOME/.claude/tmp";
   };
 
   # Security
@@ -140,7 +138,6 @@ in
   security.audit.enable = true;
 
   # Programs (system-level)
-  programs.adb.enable = true;
   programs.steam.enable = true;
   programs.direnv = {
     enable = true;
@@ -162,6 +159,7 @@ in
     wget
     openssl
     gettext
+    android-tools
 
     # DevOps (system-level)
     devenv

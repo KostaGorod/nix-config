@@ -28,7 +28,7 @@
     easyeffects
 
     # Python environment
-    (python312.withPackages (
+    (python3.withPackages (
       ps: with ps; [
         ipython
         bpython
