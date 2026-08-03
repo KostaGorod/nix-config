@@ -41,6 +41,9 @@ in
 
     # Terminals & Tools
     warp-terminal
+    bun
+    nodejs
+    mise
     pkgs-unstable.uv
     pkgs-unstable.gws
     pkgs.fuzzel
@@ -61,6 +64,7 @@ in
     kdePackages.plasma-browser-integration
 
     # Media
+    obs-studio
     kdePackages.dragon
     deluge-gtk
 
