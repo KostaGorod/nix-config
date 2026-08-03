@@ -1,0 +1,42 @@
+{ inputs, ... }:
+{
+  nixos.modules.workstation =
+    {
+      config,
+      lib,
+      pkgs,
+      ...
+    }:
+
+    let
+      cfg = config.programs.claude-code;
+
+      # Import from llm-agents.nix
+      inherit (inputs) llm-agents;
+      claude-code-pkg = llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.claude-code;
+    in
+    {
+      options.programs.claude-code = {
+        enable = lib.mkEnableOption "Anthropic Claude Code CLI";
+
+        package = lib.mkOption {
+          type = lib.types.package;
+          default = claude-code-pkg;
+          description = "The Claude Code package to use";
+        };
+      };
+
+      config = lib.mkIf cfg.enable {
+        # Add claude-code to system packages
+        environment.systemPackages = [
+          cfg.package
+        ];
+
+        # Add session variables for users
+        environment.sessionVariables = {
+          CLAUDE_CODE_CONFIG_HOME = "$HOME/.config/claude-code";
+          CLAUDE_CODE_CACHE_HOME = "$HOME/.cache/claude-code";
+        };
+      };
+    };
+}

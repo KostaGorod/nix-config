@@ -43,5 +43,5 @@
   };
 
   outputs =
-    inputs: inputs.flake-parts.lib.mkFlake { inherit inputs; } (import inputs.import-tree ./aspects);
+    inputs: inputs.flake-parts.lib.mkFlake { inherit inputs; } (import inputs.import-tree ./modules);
 }

@@ -17,9 +17,9 @@ independent flake with its own `flake.nix` and `flake.lock`, pinned to
 nix run ./flakes/droids
 ```
 
-The main flake consumes `antigravity` via its upstream input; the rest are
-either run ad-hoc or referenced from the relevant module under
-`modules/nixos/` (e.g. `droids.nix`).
+The main flake consumes Antigravity and the AI CLIs through upstream inputs.
+These standalone flakes are retained for ad-hoc packaging and testing; active
+system integration lives in the feature tree under `modules/`.
 
 ## Updating
 

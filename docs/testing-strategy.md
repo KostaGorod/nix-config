@@ -17,8 +17,9 @@ nix build .#checks.x86_64-linux.rocinante-toplevel
 - `nix flake check --no-build` evaluates every flake output without building it.
 - The explicit build realizes the complete `rocinante` NixOS closure.
 
-The host check is intentionally exposed only for `x86_64-linux`. Treefmt remains
-available for every system listed in `aspects/tooling.nix`.
+Host checks are generated from the typed host registry on each host's declared
+system. Treefmt remains available for every system listed in
+`modules/framework/tooling.nix`.
 
 ## Focused Evaluation
 

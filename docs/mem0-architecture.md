@@ -1,5 +1,9 @@
 # Mem0 Architecture Patterns
 
+> This is a design comparison and contains historical path examples. The active
+> implementation is `modules/programs/mem0.nix`; current operating instructions
+> are in `docs/mem0-setup.md`.
+
 This document captures three deployment patterns for Mem0 AI memory layer in NixOS. Use this to select the appropriate pattern without re-analyzing the codebase.
 
 ## Quick Decision Matrix
@@ -74,7 +78,7 @@ This document captures three deployment patterns for Mem0 AI memory layer in Nix
 
 ---
 
-## Pattern A: Embedded Qdrant (Current)
+## Pattern A: Embedded Qdrant (Selected For On-Demand Use)
 
 ### Architecture
 
@@ -83,9 +87,9 @@ This document captures three deployment patterns for Mem0 AI memory layer in Nix
 │  Host (rocinante)                       │
 ├─────────────────────────────────────────┤
 │  ┌───────────────────────────────────┐  │
-│  │  mem0-mcp (systemd service)       │  │
+│  │  mem0-mcp-server (on demand)      │  │
 │  │  ├── Embedded Qdrant (in-process) │  │
-│  │  └── Data: /var/lib/mem0/qdrant/  │  │
+│  │  └── Data: ~/.local/share/mem0/   │  │
 │  └───────────────────────────────────┘  │
 │              │                          │
 │              ▼                          │
@@ -98,7 +102,7 @@ This document captures three deployment patterns for Mem0 AI memory layer in Nix
 
 ### Module
 
-**File:** `modules/nixos/mem0.nix` (212 lines)
+**Active file:** `modules/programs/mem0.nix`
 
 ### Configuration
 

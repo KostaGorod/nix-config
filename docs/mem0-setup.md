@@ -1,73 +1,61 @@
 # Mem0 Setup
 
-The current host enables the on-demand `mem0-mcp-server` wrapper and uses an
-embedded Qdrant database under `~/.local/share/mem0/qdrant`. The persistent
-systemd service is configured but disabled.
+Mem0 is currently disabled. Its module remains available at
+`modules/programs/mem0.nix`, but it installs no wrapper, starts no service, and
+deploys no API secrets until explicitly enabled.
 
-## Current Mode
+## Interactive User Mode
+
+Enable the wrapper from the relevant user contribution:
 
 ```nix
-programs.mem0 = {
-  enable = true;
-  selfHosted = true;
-  userId = "kosta";
+nixos.modules.kosta = {
+  programs.mem0 = {
+    enable = true;
+    selfHosted = true;
+  };
 };
-
-services.mem0.enable = false;
 ```
 
-Run the SSE server when needed:
+When `programs.mem0.userId` is left null, the wrapper uses the runtime `$USER`.
+It can be overridden with an explicit logical memory namespace when needed:
 
-```sh
-mem0-mcp-server --host 127.0.0.1 --port 8050
+```nix
+programs.mem0.userId = "shared-project";
 ```
 
-The selected embedding and LLM providers still require their normal provider
-credentials. Do not put plaintext keys in this repository.
+Interactive mode stores embedded Qdrant data under
+`~/.local/share/mem0/qdrant`. Provider credentials must be supplied in the
+launch environment.
 
 ## Persistent Service
 
-To run Mem0 continuously, set `services.mem0.enable = true` in the host module.
-Its provider configuration already points to the agenix-managed files:
+Enable the service from host policy because it owns a system account, port,
+provider selection, and secret access:
 
-```text
-/run/secrets/voyage-api-key
-/run/secrets/anthropic-api-key
+```nix
+services.mem0 = {
+  enable = true;
+  userId = "shared-project";
+  port = 8050;
+
+  embedder = {
+    provider = "voyageai";
+    model = "voyage-4-lite";
+    apiKeyFile = "/run/secrets/voyage-api-key";
+  };
+
+  llm = {
+    provider = "anthropic";
+    model = "claude-sonnet-4-20250514";
+    apiKeyFile = "/run/secrets/anthropic-api-key";
+  };
+};
 ```
 
-When the service is enabled, the secrets module assigns those files to the
-dedicated `mem0` account. Edit or rekey them with the workflow in `SECRETS.md`.
+Here `userId` is the logical Mem0 namespace, not the operating-system service
+account. The service itself always runs as the dedicated `mem0` account.
 
-Verify the service with:
-
-```sh
-systemctl status mem0
-journalctl -u mem0 -f
-curl -N http://127.0.0.1:8050/sse
-```
-
-## Client Configuration
-
-OpenCode SSE configuration:
-
-```json
-{
-  "mcp": {
-    "mem0": {
-      "transport": "sse",
-      "url": "http://127.0.0.1:8050/sse"
-    }
-  }
-}
-```
-
-Claude Code:
-
-```sh
-claude mcp add mem0 --transport sse --url http://127.0.0.1:8050/sse
-```
-
-## Data Locations
-
-- On-demand wrapper: `~/.local/share/mem0/qdrant`
-- Persistent service: `/var/lib/mem0/qdrant`
+When enabled, agenix deploys the provider keys for that account and the service
+listens on `http://127.0.0.1:8050/sse`. Data is stored under
+`/var/lib/mem0/qdrant`.
