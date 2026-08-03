@@ -83,6 +83,4 @@
   # TLP-to-PowerProfiles bridge - hosts enable if they want COSMIC power UI integration.
   services.tlp-power-profiles-bridge.enable = lib.mkDefault false;
 
-  # TeamViewer
-  services.teamviewer.enable = true;
 }

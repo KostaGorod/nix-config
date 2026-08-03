@@ -1,6 +1,18 @@
 # Git configuration for kosta
-{ pkgs, inputs, ... }:
+{ inputs, pkgs, ... }:
 let
+  git = pkgs.gitFull.override { withLibsecret = true; };
+  gitConfig = pkgs.writeText "kosta-gitconfig" ''
+    [user]
+      name = Kosta Gorod
+      email = 35299380+KostaGorod@users.noreply.github.com
+
+    [credential]
+      helper = ${git}/bin/git-credential-libsecret
+
+    [core]
+      editor = hx
+  '';
   pkgs-unstable = import inputs.nixpkgs-unstable {
     inherit (pkgs.stdenv.hostPlatform) system;
     config.allowUnfree = true;
@@ -8,22 +20,12 @@ let
 in
 {
   programs.git = {
-    package = pkgs.gitFull;
+    package = git;
     enable = true;
   };
 
-  environment.etc."gitconfig".text = ''
-    [user]
-      name = Kosta Gorod
-      email = 35299380+KostaGorod@users.noreply.github.com
-
-    [credential]
-      helper = ${pkgs.gitFull.override { withLibsecret = true; }}/bin/git-credential-libsecret
-
-    [core]
-    editor = helix
-  '';
+  systemd.tmpfiles.rules = [ "L+ /home/kosta/.gitconfig - kosta users - ${gitConfig}" ];
 
   # GitHub CLI
-  environment.systemPackages = [ pkgs-unstable.gh ];
+  users.users.kosta.packages = [ pkgs-unstable.gh ];
 }

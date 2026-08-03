@@ -5,7 +5,6 @@
   imports = [
     ../modules/nixos/services.nix
     ../modules/nixos/desktop.nix
-    ../modules/nixos/tailscale.nix
     ../modules/nixos/opencode.nix
     ../modules/nixos/claude-code.nix
     ../modules/nixos/droids.nix

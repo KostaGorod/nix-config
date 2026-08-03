@@ -9,7 +9,7 @@ let
   orca-ide = pkgs.callPackage ../../packages/orca-ide { };
 in
 {
-  environment.systemPackages = with pkgs; [
+  users.users.kosta.packages = with pkgs; [
     # IDEs & Editors
     pkgs-unstable.zed-editor
     pkgs.helix

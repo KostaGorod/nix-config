@@ -13,7 +13,7 @@ _: {
       gl = "git log";
       g = "git";
       k = "kubectl";
-      nftest = "cd /home/kosta/nix-config && nix flake check --flake .#rocinante";
+      nftest = "cd /home/kosta/nix-config && nix flake check";
       nfswitch = "cd /home/kosta/nix-config && sudo nixos-rebuild switch --flake .#rocinante";
       nftestswitch = "nftest && nfswitch";
     };
@@ -29,9 +29,6 @@ _: {
       line_break.disabled = true;
     };
   };
-
-  # Direnv for automatic environment loading
-  programs.direnv.enable = true;
 
   # Carapace not available in NixOS - use regular bash completion
 }

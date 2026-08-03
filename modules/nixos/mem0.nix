@@ -28,7 +28,7 @@ in
     selfHosted = lib.mkOption {
       type = lib.types.bool;
       default = true;
-      description = "Use self-hosted mode with local Qdrant storage (no cloud API)";
+      description = "Use embedded local Qdrant storage instead of a Qdrant server";
     };
 
     userId = lib.mkOption {
@@ -131,15 +131,7 @@ in
   config = lib.mkMerge [
     # programs.mem0 configuration
     (lib.mkIf cfg.enable {
-      # Create necessary directories for Mem0
-      systemd.tmpfiles.rules = [
-        "d %h/.config/mem0 0755 - - -"
-        "d %h/.cache/mem0 0755 - - -"
-        "d %h/.local/share/mem0 0755 - - -"
-        "d %h/.local/share/mem0/qdrant 0755 - - -"
-      ];
-
-      # Add session variables for self-hosted mode
+      # Add session variables for interactive users.
       environment.sessionVariables = {
         MEM0_DATA_DIR = cfg.dataDir;
         MEM0_DEFAULT_USER_ID = cfg.userId;
@@ -153,6 +145,10 @@ in
         (pkgs.writeShellScriptBin "mem0-mcp-server" ''
           export MEM0_DATA_DIR="''${MEM0_DATA_DIR:-$HOME/.local/share/mem0}"
           export MEM0_DEFAULT_USER_ID="''${MEM0_DEFAULT_USER_ID:-${cfg.userId}}"
+          ${lib.optionalString cfg.selfHosted ''
+            export MEM0_QDRANT_PATH="''${MEM0_QDRANT_PATH:-$MEM0_DATA_DIR/qdrant}"
+            mkdir -p "$MEM0_QDRANT_PATH"
+          ''}
 
           exec ${pkgs-unstable.uv}/bin/uv run --with mem0ai --with "mcp[cli]" --with pydantic ${./mem0/server.py} "$@"
         '')

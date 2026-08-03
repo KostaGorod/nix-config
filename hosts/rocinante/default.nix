@@ -61,12 +61,6 @@ in
     nixPath = lib.mapAttrsToList (key: value: "${key}=${value.to.path}") config.nix.registry;
   };
   nixpkgs.config.allowUnfree = lib.mkForce true;
-  nixpkgs.config.allowUnfreePredicate =
-    pkg:
-    builtins.elem (lib.getName pkg) [
-      "claude-code"
-      "droid"
-    ];
 
   # Boot
   boot.loader.systemd-boot.enable = true;
