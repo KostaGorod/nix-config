@@ -1,114 +1,88 @@
 # Architecture
 
-A single-host NixOS flake built with [flake-parts][fp] and organized using the
-[dendritic pattern][dendritic]. Auto-imported top-level aspects declare typed,
-deferred NixOS modules and compose the `rocinante` host. Everything below boots
-and reconciles from `nixos-rebuild switch --flake .#rocinante`.
+This is a single-host NixOS flake built with [flake-parts][fp] and the
+[dendritic pattern][dendritic]. `flake.nix` recursively imports `modules/` with
+`import-tree`; every active Nix file in that tree is therefore a flake-parts
+top-level module rather than a conventional NixOS module.
 
 ## Composition
 
 ```mermaid
 flowchart LR
   flake["flake.nix<br/>(flake-parts + import-tree)"]
-  aspects["aspects/*<br/>top-level modules"]
-  host["nixos.configurations.rocinante"]
+  tree["modules/**/*<br/>top-level modules"]
+  framework["modules/framework<br/>typed deferred options"]
   workstation["nixos.modules.workstation"]
-  machine["hosts/rocinante<br/>machine settings"]
-  prof["profiles/workstation.nix<br/>role profile"]
-  de["de/plasma6.nix<br/>de/cosmic.nix"]
-  mods["modules/nixos/*<br/>opt-in services"]
-  user["users/kosta/<br/>NixOS user module"]
+  user["nixos.modules.kosta"]
+  host["nixos.configurations.rocinante.module"]
+  nixos["nixosConfigurations.rocinante"]
 
-  flake --> aspects
-  aspects --> host
-  aspects --> workstation
-  host --> workstation
-  host --> machine
-  workstation --> prof
-  workstation --> de
-  workstation --> user
-  prof --> mods
+  flake --> tree
+  tree --> framework
+  tree --> workstation
+  tree --> user
+  tree --> host
+  workstation --> host
+  user --> host
+  host --> nixos
 ```
 
-- **`flake.nix`** declares inputs and delegates all output construction to the
-  recursively imported flake-parts modules in `aspects/`.
-- **`aspects/nixos.nix`** declares the typed `nixos.modules` and
-  `nixos.configurations` deferred-module options, then exports evaluated hosts
-  through `flake.nixosConfigurations`.
-- **`aspects/workstation.nix`** defines the reusable lower-level workstation
-  module. **`aspects/rocinante.nix`** composes it with machine-specific modules,
-  disko, and agenix. **`aspects/tooling.nix`** owns systems, checks, and treefmt.
-- **`hosts/rocinante/`** contains hardware, disko, boot, locale, and host policy.
-- **`profiles/workstation.nix`** bundles the "daily driver" role — editors,
-  AI CLIs, desktop utilities — separated from host-specific concerns so a
-  future host can reuse it.
-- **`modules/nixos/*`** each expose `options.*.enable` (or similar) with
-  sensible defaults. The host flips on what it needs; nothing leaks in by
-  import order.
-- **`users/kosta/`** is a NixOS module. Application packages use
-  `users.users.kosta.packages`, while NixOS `programs.*` defaults remain global.
-  Home Manager is not part of this flake.
+The typed framework exposes `nixos.modules` as lazy deferred modules and
+`nixos.configurations` as typed host records. Feature files merge lower-level
+NixOS fragments into the broad `workstation` module. User files merge into the
+broad `kosta` module, preserving `users.users.kosta.packages` scoping. Host
+files merge machine policy directly into the rocinante module.
 
-## Runtime picture
+Features capture required flake inputs in their top-level module functions.
+The lower-level NixOS evaluation does not receive a global `inputs` argument.
 
-```mermaid
-flowchart TB
-  subgraph hw["Hardware"]
-    tpm["TPM 2.0"]
-    yk["YubiKey (FIDO2)"]
-    fp["Fingerprint reader"]
-  end
+The host composition imports only:
 
-  subgraph sec["Security plane"]
-    sshtpm["ssh-tpm-pkcs11<br/>hardware-backed SSH"]
-    agenix["agenix<br/>/run/secrets/*"]
-  end
+- `nixos.modules.workstation`
+- `nixos.modules.kosta`
+- the disko and agenix upstream modules
+- `_hardware-configuration.nix` and `_disko-config.nix`
 
-  subgraph net["Network plane"]
-    ts["tailscale<br/>MagicDNS client"]
-    dnsmasq["dnsmasq<br/>split-DNS"]
-    fw["nftables firewall<br/>default deny"]
-  end
+The underscore-prefixed files are deliberately excluded from recursive
+auto-import because they are lower-level generated/machine data. There is no
+central feature import list.
 
-  subgraph ai["AI tooling"]
-    cli["claude-code, opencode,<br/>droids"]
-    mem0["mem0<br/>on-demand MCP wrapper"]
-  end
+## Module Tree
 
-  tpm --> sshtpm
-  yk --> sshtpm
-  fp --> sshtpm
-  cli --> mem0
-  ts --> dnsmasq
-  dnsmasq --> fw
+```text
+modules/
+├── framework/       # typed options, host export, treefmt, checks
+├── hosts/rocinante/ # composition and host-specific policy
+├── users/kosta/     # user-scoped packages and Git configuration
+├── desktop/         # Plasma, COSMIC, clipboard, desktop packages
+├── hardware/        # kernel, fingerprint, YubiKey
+├── networking/      # Tailscale and split DNS
+├── programs/        # AI tools, nix-ld, Spotify, workstation toggles
+├── services/        # audio, printing, power, optional Qdrant
+└── security/        # agenix declarations and TPM-backed SSH
 ```
 
-## Key design choices
+Package functions in `packages/`, standalone flakes in `flakes/`, overlays in
+`overlays/`, and the recipient expression in `secrets.nix` remain outside the
+auto-import tree. Encrypted secret payloads remain in `secrets/*.age` and are
+decrypted only into `/run/secrets` at activation.
 
-- **Explicit service toggles.** Service-shaped modules such as `mem0`,
-  `tailscale-mesh`, `ssh-tpm`, `yubikey`, and the AI CLIs have enable options.
-  Profile fragments such as desktop utilities are intentionally enabled by
-  importing the workstation composition.
-- **Secrets live in `secrets/*.age`** (agenix). The encrypted files are
-  checked in; plaintext lives only in `/run/secrets/` at runtime. See
-  [`SECRETS.md`](./SECRETS.md).
-- **Split DNS without a custom resolver.** `tailscale-mesh` wires dnsmasq so
-  `*.ts.net` and private tailnet domains resolve through MagicDNS while the
-  rest goes to 1.1.1.1. No systemd-resolved tug-of-war.
-- **Standalone packaging flakes in `flakes/`** for tools not in nixpkgs
-  (Antigravity, Claude Code, Droids, Vibe Kanban). Independent
-  `flake.lock`s let them update without churning the main flake.
-- **Treefmt + CI.** `nix flake check` runs `nixfmt`, `deadnix`, and `statix`
-  via `treefmt-nix`. CI (`.github/workflows/test.yml`) evaluates the flake,
-  builds the host, and verifies formatting.
+Inactive legacy Qdrant and OnlyOffice fragments remain inert as excluded
+`_qdrant.nix` and `_onlyoffice.nix` files. The rocinante host enables the
+workstation tools and services it currently uses, including
+PipeWire with 32-bit ALSA support, Tailscale, TeamViewer, direnv with
+nix-direnv. Both the Mem0 wrapper and persistent Mem0 service are disabled.
+
+The single broad `workstation` module matches the current one-host topology. If
+a server or other non-workstation host is added, introduce a broad `base`
+module for shared features such as networking instead of creating one deferred
+module per feature.
 
 ## Deploying
 
 ```sh
-# Dry run
+nix flake check --no-build --show-trace
 nix build .#checks.x86_64-linux.rocinante-toplevel
-
-# Apply
 sudo nixos-rebuild switch --flake .#rocinante
 ```
 

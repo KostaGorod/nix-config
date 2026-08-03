@@ -9,7 +9,7 @@ COSMIC has been added as an additional desktop environment option alongside Plas
    sudo nixos-rebuild switch
    ```
 
-2. **At the SDDM login screen:**
+2. **At the COSMIC greeter:**
    - Click on the desktop session icon (usually shows "Plasma (Wayland)" by default)
    - Select "COSMIC" from the dropdown menu
    - Enter your password and login
@@ -33,7 +33,7 @@ Your user files, settings, and applications are shared between both desktop envi
 
 ## Performance Notes
 
-COSMIC includes the System76 scheduler for better performance. If you experience any issues, you can disable it in `/de/cosmic.nix` by commenting out:
+COSMIC includes the System76 scheduler for better performance. If you experience any issues, disable it in `modules/services/workstation.nix`:
 ```nix
 # services.system76-scheduler.enable = true;
 ```
@@ -42,5 +42,5 @@ COSMIC includes the System76 scheduler for better performance. If you experience
 
 If COSMIC doesn't appear in the session list:
 1. Ensure you've rebuilt with `sudo nixos-rebuild switch`
-2. Check that SDDM is running: `systemctl status sddm`
+2. Check that greetd is running: `systemctl status greetd`
 3. Verify COSMIC packages are installed: `nix-store -q /run/current-system/sw | grep cosmic`

@@ -8,9 +8,9 @@ into `/run/secrets/`.
 | File                             | Consumer                           |
 |----------------------------------|------------------------------------|
 | `secrets.nix`                    | Declares which keys can read what  |
-| `secrets/voyage-api-key.age`     | `mem0` (VoyageAI embeddings)       |
-| `secrets/anthropic-api-key.age`  | `mem0` (Claude LLM for extraction) |
-| `modules/nixos/secrets.nix`      | Wires `age.secrets.<name>`         |
+| `secrets/voyage-api-key.age`     | Optional Mem0 VoyageAI embeddings       |
+| `secrets/anthropic-api-key.age`  | Optional Mem0 Claude LLM extraction     |
+| `modules/security/secrets.nix`   | Wires `age.secrets.<name>`         |
 
 The host's SSH host key (`/etc/ssh/ssh_host_ed25519_key`) is the decryption
 identity at boot. A user identity
