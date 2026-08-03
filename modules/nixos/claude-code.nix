@@ -30,13 +30,6 @@ in
       cfg.package
     ];
 
-    # Create necessary directories for Claude Code
-    systemd.tmpfiles.rules = [
-      "d %h/.config/claude-code 0755 - - -"
-      "d %h/.cache/claude-code 0755 - - -"
-      "d %h/.local/share/claude-code 0755 - - -"
-    ];
-
     # Add session variables for users
     environment.sessionVariables = {
       CLAUDE_CODE_CONFIG_HOME = "$HOME/.config/claude-code";

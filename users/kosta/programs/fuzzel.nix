@@ -1,6 +1,6 @@
 # Fuzzel - Wayland application launcher / dmenu replacement
 _: {
-  environment.etc."fuzzel.ini".text = ''
+  environment.etc."xdg/fuzzel/fuzzel.ini".text = ''
     [main]
     font=monospace:size=7
     width=100

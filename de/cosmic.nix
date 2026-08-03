@@ -24,8 +24,7 @@
     greetd.settings.default_session.command = lib.mkForce ''${lib.getExe' pkgs.dbus "dbus-run-session"} -- ${lib.getExe' pkgs.coreutils "env"} XCURSOR_THEME="''${XCURSOR_THEME:-Pop}" ${lib.getExe' config.services.displayManager.cosmic-greeter.package "cosmic-greeter-start"}'';
   };
 
-  # Allow both the greeter user and the main user to talk to seatd.
-  users.users.kosta.extraGroups = lib.mkAfter [ "seat" ];
+  # Allow the greeter to talk to seatd. Host users opt in separately.
   users.users.cosmic-greeter.extraGroups = lib.mkAfter [ "seat" ];
 
   # Prefer seatd backend when available.

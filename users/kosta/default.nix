@@ -1,5 +1,5 @@
-# User configuration for kosta - NixOS module
-# Aggregates packages and program configs
+# Kosta's NixOS user configuration
+# Aggregates user packages and system-level program defaults
 { ... }:
 {
   imports = [

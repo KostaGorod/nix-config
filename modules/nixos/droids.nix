@@ -31,13 +31,6 @@ in
       xdg-utils
     ];
 
-    # Create necessary directories for Droids
-    systemd.tmpfiles.rules = [
-      "d %h/.factory 0755 - - -"
-      "d %h/.factory/bin 0755 - - -"
-      "d %h/.config/factory 0755 - - -"
-    ];
-
     # Add session variables for users
     environment.sessionVariables = {
       FACTORY_CONFIG_HOME = "$HOME/.config/factory";

@@ -74,13 +74,6 @@ in
       cfg.desktop.package
     ];
 
-    # Create necessary directories for OpenCode
-    systemd.tmpfiles.rules = [
-      "d %h/.config/opencode 0755 - - -"
-      "d %h/.cache/opencode 0755 - - -"
-      "d %h/.local/share/opencode 0755 - - -"
-    ];
-
     # Add session variables for users
     environment.sessionVariables = {
       OPENCODE_CONFIG_HOME = "$HOME/.config/opencode";

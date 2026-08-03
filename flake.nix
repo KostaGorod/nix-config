@@ -9,6 +9,10 @@
       url = "github:hercules-ci/flake-parts";
       inputs.nixpkgs-lib.follows = "nixpkgs";
     };
+    import-tree = {
+      url = "github:vic/import-tree";
+      flake = false;
+    };
     treefmt-nix = {
       url = "github:numtide/treefmt-nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -39,61 +43,5 @@
   };
 
   outputs =
-    inputs@{
-      self,
-      flake-parts,
-      nixpkgs,
-      ...
-    }:
-    flake-parts.lib.mkFlake { inherit inputs; } {
-      systems = [
-        "x86_64-linux"
-        "aarch64-linux"
-      ];
-
-      imports = [
-        inputs.treefmt-nix.flakeModule
-      ];
-
-      perSystem = _: {
-        treefmt = {
-          projectRootFile = "flake.nix";
-          settings.excludes = [ "flakes/**" ];
-          programs = {
-            nixfmt.enable = true;
-            deadnix.enable = true;
-            statix.enable = true;
-          };
-        };
-
-        checks = {
-          # Only check the actual host build for now
-          rocinante-toplevel = self.nixosConfigurations.rocinante.config.system.build.toplevel;
-        };
-      };
-
-      flake = {
-        nixosConfigurations.rocinante = nixpkgs.lib.nixosSystem {
-          system = "x86_64-linux";
-          specialArgs = { inherit inputs; };
-          modules = [
-            ./hosts/rocinante
-            ./hosts/rocinante/disko-config.nix
-            inputs.disko.nixosModules.disko
-            inputs.agenix.nixosModules.default
-            ./modules/nixos/secrets.nix
-            ./profiles/workstation.nix
-            ./de/plasma6.nix
-            ./de/cosmic.nix
-            ./modules/nixos/utils.nix
-            ./modules/nixos/cliphist.nix
-            ./modules/nixos/spotify.nix
-            ./modules/nixos/moonlight-qt.nix
-            ./modules/nixos/tlp-power-profiles-bridge.nix
-            ./users/kosta
-          ];
-        };
-
-      };
-    };
+    inputs: inputs.flake-parts.lib.mkFlake { inherit inputs; } (import inputs.import-tree ./aspects);
 }

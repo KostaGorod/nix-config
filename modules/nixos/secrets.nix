@@ -1,7 +1,12 @@
 # agenix secrets configuration
 # Decrypts secrets at activation and places them in /run/secrets/
-_:
-
+{ config, lib, ... }:
+let
+  mem0Ownership = lib.optionalAttrs config.services.mem0.enable {
+    owner = "mem0";
+    group = "mem0";
+  };
+in
 {
   # Age identities for decryption
   age.identityPaths = [
@@ -12,16 +17,14 @@ _:
   age.secrets = {
     voyage-api-key = {
       file = ../../secrets/voyage-api-key.age;
-      #owner = "mem0";
-      #group = "mem0";
       mode = "0400";
-    };
+    }
+    // mem0Ownership;
 
     anthropic-api-key = {
       file = ../../secrets/anthropic-api-key.age;
-      #owner = "mem0";
-      #group = "mem0";
       mode = "0400";
-    };
+    }
+    // mem0Ownership;
   };
 }

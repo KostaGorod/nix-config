@@ -1,42 +1,53 @@
 # Architecture
 
-A single-host NixOS flake built with [flake-parts][fp], composed from small,
-opt-in modules. Everything below boots and reconciles from
-`nixos-rebuild switch --flake .#rocinante`.
+A single-host NixOS flake built with [flake-parts][fp] and organized using the
+[dendritic pattern][dendritic]. Auto-imported top-level aspects declare typed,
+deferred NixOS modules and compose the `rocinante` host. Everything below boots
+and reconciles from `nixos-rebuild switch --flake .#rocinante`.
 
 ## Composition
 
 ```mermaid
 flowchart LR
-  flake["flake.nix<br/>(flake-parts)"]
-  host["hosts/rocinante<br/>entry point"]
+  flake["flake.nix<br/>(flake-parts + import-tree)"]
+  aspects["aspects/*<br/>top-level modules"]
+  host["nixos.configurations.rocinante"]
+  workstation["nixos.modules.workstation"]
+  machine["hosts/rocinante<br/>machine settings"]
   prof["profiles/workstation.nix<br/>role profile"]
   de["de/plasma6.nix<br/>de/cosmic.nix"]
   mods["modules/nixos/*<br/>opt-in services"]
-  hm["home-manager<br/>users/kosta/"]
+  user["users/kosta/<br/>NixOS user module"]
 
-  flake --> host
-  host --> prof
-  host --> de
-  host --> mods
-  flake --> hm
+  flake --> aspects
+  aspects --> host
+  aspects --> workstation
+  host --> workstation
+  host --> machine
+  workstation --> prof
+  workstation --> de
+  workstation --> user
   prof --> mods
 ```
 
-- **`flake.nix`** wires inputs (`nixpkgs`, `home-manager`, `disko`, `agenix`,
-  `nixos-hardware`, vendor flakes) and exposes
-  `nixosConfigurations.rocinante` plus `checks` for CI.
-- **`hosts/rocinante/`** is the host entry point: hardware, disko, boot,
-  locale, and the short list of modules this host turns on.
+- **`flake.nix`** declares inputs and delegates all output construction to the
+  recursively imported flake-parts modules in `aspects/`.
+- **`aspects/nixos.nix`** declares the typed `nixos.modules` and
+  `nixos.configurations` deferred-module options, then exports evaluated hosts
+  through `flake.nixosConfigurations`.
+- **`aspects/workstation.nix`** defines the reusable lower-level workstation
+  module. **`aspects/rocinante.nix`** composes it with machine-specific modules,
+  disko, and agenix. **`aspects/tooling.nix`** owns systems, checks, and treefmt.
+- **`hosts/rocinante/`** contains hardware, disko, boot, locale, and host policy.
 - **`profiles/workstation.nix`** bundles the "daily driver" role — editors,
   AI CLIs, desktop utilities — separated from host-specific concerns so a
   future host can reuse it.
 - **`modules/nixos/*`** each expose `options.*.enable` (or similar) with
   sensible defaults. The host flips on what it needs; nothing leaks in by
   import order.
-- **`users/kosta/`** is home-manager, imported through the
-  `home-manager.nixosModules.home-manager` wrapper so system and user state
-  are built atomically.
+- **`users/kosta/`** is a NixOS module. Application packages use
+  `users.users.kosta.packages`, while NixOS `programs.*` defaults remain global.
+  Home Manager is not part of this flake.
 
 ## Runtime picture
 
@@ -61,15 +72,12 @@ flowchart TB
 
   subgraph ai["AI tooling"]
     cli["claude-code, opencode,<br/>droids"]
-    mem0["mem0<br/>MCP server"]
-    qdrant["qdrant<br/>vector store"]
+    mem0["mem0<br/>on-demand MCP wrapper"]
   end
 
   tpm --> sshtpm
   yk --> sshtpm
   fp --> sshtpm
-  agenix -->|anthropic/voyage keys| mem0
-  mem0 --> qdrant
   cli --> mem0
   ts --> dnsmasq
   dnsmasq --> fw
@@ -77,10 +85,10 @@ flowchart TB
 
 ## Key design choices
 
-- **`mkEnableOption` everywhere it matters.** Each service-shaped module
-  (`mem0`, `tailscale-mesh`, `ssh-tpm`, `yubikey`, `mem0`, AI CLIs) has an
-  explicit enable toggle. The host file reads as a policy statement, not a
-  config dump.
+- **Explicit service toggles.** Service-shaped modules such as `mem0`,
+  `tailscale-mesh`, `ssh-tpm`, `yubikey`, and the AI CLIs have enable options.
+  Profile fragments such as desktop utilities are intentionally enabled by
+  importing the workstation composition.
 - **Secrets live in `secrets/*.age`** (agenix). The encrypted files are
   checked in; plaintext lives only in `/run/secrets/` at runtime. See
   [`SECRETS.md`](./SECRETS.md).
@@ -91,8 +99,8 @@ flowchart TB
   (Antigravity, Claude Code, Droids, Vibe Kanban). Independent
   `flake.lock`s let them update without churning the main flake.
 - **Treefmt + CI.** `nix flake check` runs `nixfmt`, `deadnix`, and `statix`
-  via `treefmt-nix`. CI (`.github/workflows/test.yml`) builds the host and
-  verifies formatting on every PR.
+  via `treefmt-nix`. CI (`.github/workflows/test.yml`) evaluates the flake,
+  builds the host, and verifies formatting.
 
 ## Deploying
 
@@ -105,3 +113,4 @@ sudo nixos-rebuild switch --flake .#rocinante
 ```
 
 [fp]: https://flake.parts
+[dendritic]: https://github.com/mightyiam/dendritic

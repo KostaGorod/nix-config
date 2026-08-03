@@ -37,8 +37,6 @@
 
   # Hardware, locale, boot, networking — defined in default.nix
 
-  services.fwupd.enable = true;
-
   # Enable CUPS - host-specific drivers, localhost only
   services.printing = {
     drivers = [
@@ -65,14 +63,6 @@
     reflector = false; # Don't reflect mDNS (used by AirPlay across subnets)
   };
 
-  services.pipewire = {
-    enable = true;
-    pulse.enable = true;
-    alsa = {
-      enable = true;
-      support32Bit = true;
-    };
-  };
   # Enable SSH with TPM PKCS#11 for hardware-backed SSH keys
   security.ssh-tpm = {
     enable = true;
@@ -152,7 +142,7 @@
     };
   };
 
-  # User account (packages managed via home-manager in users/kosta/packages.nix)
+  # User account (packages managed by NixOS in users/kosta/packages.nix)
   users.users.kosta = {
     isNormalUser = true;
     extraGroups = [
@@ -160,6 +150,7 @@
       "networkmanager"
       "docker"
       "adbusers"
+      "seat"
     ];
     shell = pkgs.bash;
   };

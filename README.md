@@ -4,13 +4,16 @@ Fully declarative NixOS configuration for my daily-driver ThinkPad (`rocinante`)
 
 Plasma 6 and COSMIC side by side, hardware-backed SSH (TPM + YubiKey + fingerprint),
 Tailscale mesh, agenix-managed secrets, and a growing set of AI coding tools
-(Claude Code, OpenCode, and Droids) on top of a
-self-hosted Mem0 memory layer backed by Qdrant. Power management is tuned per-profile
-with TLP, battery-health thresholds, and runtime PM tweaks.
+(Claude Code, OpenCode, and Droids). An on-demand Mem0 MCP wrapper is installed;
+the persistent Mem0 service and standalone Qdrant container are currently disabled.
+Power management is tuned per-profile with TLP, battery-health thresholds, and
+runtime PM tweaks.
 
-User environment is managed with home-manager: editors (Helix, VSCode, Zed), shell
-(Bash + Starship + Direnv), and the usual desktop apps. Custom overlays patch Spotify
-with SpotX and add sensitive-clipboard support to wl-clipboard for password managers.
+Editors (Helix, VSCode, Zed), shell tools (Bash + Starship + Direnv), and desktop apps
+are managed by NixOS. Kosta's application packages and Git configuration are scoped
+to that user; program defaults that use NixOS's global `programs.*` options remain
+system-wide. Spotify is patched with SpotX, and wl-clipboard includes
+sensitive-clipboard support for password managers.
 
 ## Deploy
 
@@ -25,16 +28,17 @@ workflow.
 
 ## Layout
 
-| Path           | Purpose                                                  |
-|----------------|----------------------------------------------------------|
-| `flake.nix`    | Inputs, `nixosConfigurations.rocinante`, `treefmt`       |
-| `hosts/`       | Per-host entry points, hardware config, disko layout     |
-| `profiles/`    | Role profiles (`workstation.nix`)                        |
-| `modules/`     | Reusable NixOS modules (mem0, tailscale, ssh-tpm, …)     |
-| `de/`          | Desktop environments (`plasma6.nix`, `cosmic.nix`)       |
-| `users/kosta/` | Home-manager config and user packages                    |
-| `overlays/`    | Custom package overlays (Spotify SpotX, wl-clipboard)    |
-| `packages/`    | Locally built packages                                   |
-| `secrets/`     | Age-encrypted secrets (see `docs/SECRETS.md`)            |
-| `flakes/`      | Standalone dev shells; see `flakes/README.md`            |
-| `docs/`        | Architecture notes and setup guides                      |
+| Path           | Purpose                                                     |
+|----------------|-------------------------------------------------------------|
+| `flake.nix`    | Inputs and the minimal dendritic `import-tree` entry point   |
+| `aspects/`     | Auto-imported flake-parts modules and host composition       |
+| `hosts/`       | Per-host settings, hardware config, and disko layout         |
+| `profiles/`    | Lower-level role profiles (`workstation.nix`)                |
+| `modules/`     | Reusable NixOS modules (mem0, tailscale, ssh-tpm, ...)        |
+| `de/`          | Desktop environments (`plasma6.nix`, `cosmic.nix`)           |
+| `users/kosta/` | NixOS user settings, packages, and selected program defaults |
+| `overlays/`    | Package overlays retained for reuse                          |
+| `packages/`    | Locally built packages                                       |
+| `secrets/`     | Age-encrypted secrets (see `docs/SECRETS.md`)                |
+| `flakes/`      | Standalone dev shells; see `flakes/README.md`                |
+| `docs/`        | Architecture notes and setup guides                          |
