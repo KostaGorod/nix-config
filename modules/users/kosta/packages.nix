@@ -47,6 +47,7 @@
         tmux
         bun
         nodejs
+        go
         mise
         pkgs-unstable.uv
         pkgs-unstable.gws
@@ -64,7 +65,8 @@
         # Remote desktop
         remmina
 
-        # KDE integration
+        # Desktop integration
+        cosmic-ext-applet-caffeine
         kdePackages.plasma-browser-integration
 
         # Media
