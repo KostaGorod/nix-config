@@ -44,6 +44,7 @@
 
         # Terminals & Tools
         warp-terminal
+        tmux
         bun
         nodejs
         mise

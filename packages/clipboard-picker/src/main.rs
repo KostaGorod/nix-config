@@ -1,6 +1,6 @@
 use std::env;
 use std::io::Write;
-use std::process::{Command, ExitStatus, Stdio};
+use std::process::{Command, Stdio};
 
 fn main() {
     let cliphist = env::var("CLIPHIST_BIN").unwrap_or_else(|_| "cliphist".into());
@@ -28,8 +28,7 @@ fn main() {
     match exit_code {
         0 => copy_entry(&cliphist, &wl_copy, &clean_entry),
         10 => quick_edit(&cliphist, &wl_copy, &zenity, &clean_entry),
-        11 => open_in_editor(&cliphist, &clean_entry),
-        12 => delete_entry(&cliphist, &clean_entry),
+        11 => delete_entry(&cliphist, &clean_entry),
         _ => copy_entry(&cliphist, &wl_copy, &clean_entry),
     }
 }
@@ -41,7 +40,10 @@ fn get_clipboard_hash(wl_paste: &str) -> String {
         .output()
         .ok()
         .map(|out| {
-            let content: String = String::from_utf8_lossy(&out.stdout).chars().take(1000).collect();
+            let content: String = String::from_utf8_lossy(&out.stdout)
+                .chars()
+                .take(1000)
+                .collect();
             simple_hash(&content)
         })
         .unwrap_or_default()
@@ -99,12 +101,16 @@ fn run_rofi(rofi: &str, entries: &[String]) -> (String, i32) {
         .args([
             "-dmenu",
             "-i",
-            "-p", "📋 Clipboard",
-            "-mesg", "Enter=Copy | Alt+E=Edit | Alt+O=Open | Alt+D=Delete",
-            "-kb-accept-entry", "Return,KP_Enter",
-            "-kb-custom-1", "Alt+e",
-            "-kb-custom-2", "Alt+o", 
-            "-kb-custom-3", "Alt+d",
+            "-p",
+            "📋 Clipboard",
+            "-mesg",
+            "Enter=Copy | Alt+E=Edit | Alt+D=Delete",
+            "-kb-accept-entry",
+            "Return,KP_Enter",
+            "-kb-custom-1",
+            "Alt+e",
+            "-kb-custom-2",
+            "Alt+d",
         ])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -115,7 +121,9 @@ fn run_rofi(rofi: &str, entries: &[String]) -> (String, i32) {
         let _ = stdin.write_all(input.as_bytes());
     }
 
-    let output = child.wait_with_output().expect("Failed to read rofi output");
+    let output = child
+        .wait_with_output()
+        .expect("Failed to read rofi output");
     let exit_code = output.status.code().unwrap_or(1);
     let selection = String::from_utf8_lossy(&output.stdout).trim().to_string();
 
@@ -165,7 +173,9 @@ fn quick_edit(cliphist: &str, wl_copy: &str, zenity: &str, entry: &str) {
         let _ = stdin.write_all(content.as_bytes());
     }
 
-    let output = child.wait_with_output().expect("Failed to read zenity output");
+    let output = child
+        .wait_with_output()
+        .expect("Failed to read zenity output");
     let edited = String::from_utf8_lossy(&output.stdout);
 
     if !edited.is_empty() {
@@ -194,32 +204,4 @@ fn delete_entry(cliphist: &str, entry: &str) {
     }
 
     let _ = child.wait();
-}
-
-fn open_in_editor(cliphist: &str, entry: &str) {
-    let content = decode_entry(cliphist, entry);
-    let tmpfile = format!("/tmp/clipboard-{}.txt", std::process::id());
-
-    std::fs::write(&tmpfile, &content).expect("Failed to write temp file");
-
-    let editors = ["xdg-open", "cosmic-edit", "kate", "kwrite", "gedit"];
-
-    for editor in &editors {
-        if Command::new("which")
-            .arg(editor)
-            .stdout(Stdio::null())
-            .status()
-            .map(|s| s.success())
-            .unwrap_or(false)
-        {
-            let _ = Command::new(editor).arg(&tmpfile).spawn();
-
-            std::thread::spawn(move || {
-                std::thread::sleep(std::time::Duration::from_secs(300));
-                let _ = std::fs::remove_file(&tmpfile);
-            });
-
-            return;
-        }
-    }
 }
