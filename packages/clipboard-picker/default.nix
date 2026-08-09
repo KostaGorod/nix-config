@@ -23,7 +23,6 @@ rustPlatform.buildRustPackage {
       --set CLIPHIST_BIN "${cliphist}/bin/cliphist" \
       --set ROFI_BIN "${rofi}/bin/rofi" \
       --set WL_COPY_BIN "${wl-clipboard}/bin/wl-copy" \
-      --set WL_PASTE_BIN "${wl-clipboard}/bin/wl-paste" \
       --set ZENITY_BIN "${zenity}/bin/zenity"
   '';
 

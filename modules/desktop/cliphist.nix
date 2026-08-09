@@ -24,7 +24,6 @@ _: {
         wl-clipboard = wl-clipboard-sensitive;
       };
 
-      vaultCommand = "${cliphist-secure}/libexec/cliphist-vault";
       cliphistCommand = "${cliphist-secure}/bin/cliphist";
 
       watcherHardening = {
@@ -33,9 +32,12 @@ _: {
         NoNewPrivileges = true;
         PrivateDevices = true;
         PrivateTmp = true;
-        ProtectHome = true;
+        ProtectHome = "read-only";
         ProtectSystem = "strict";
-        ReadWritePaths = [ "%t/cliphist-vault" ];
+        ReadWritePaths = [
+          "%h/.local/state/cliphist-vault"
+          "%t/cliphist-vault"
+        ];
         RestrictAddressFamilies = [ "AF_UNIX" ];
         LockPersonality = true;
         MemoryDenyWriteExecute = true;
@@ -57,40 +59,26 @@ _: {
         clipboard-picker
       ];
 
-      # Decrypted history exists only in the per-user runtime directory. The
-      # persistent backing directory contains gocryptfs ciphertext.
+      # Initialize and validate the persistent SQLCipher database before the
+      # clipboard watchers start. No plaintext mount or privileged helper is used.
       systemd.user.services.cliphist-vault = {
-        description = "Encrypted clipboard history vault";
+        description = "Encrypted clipboard history database";
         wantedBy = [ "graphical-session.target" ];
         partOf = [ "graphical-session.target" ];
         after = [ "graphical-session.target" ];
 
-        serviceConfig = {
-          Type = "simple";
-          ExecStart = "${vaultCommand} mount";
-          ExecStartPost = "${vaultCommand} wait";
-          ExecStop = "${vaultCommand} unmount";
-          Environment = "PATH=/run/wrappers/bin";
+        serviceConfig = watcherHardening // {
+          Type = "oneshot";
+          ExecStart = "${cliphistCommand} init";
+          RemainAfterExit = true;
           Restart = "on-failure";
           RestartSec = 2;
           TimeoutStartSec = 20;
-          TimeoutStopSec = 15;
 
-          UMask = "0077";
-          LimitCORE = 0;
           StateDirectory = "cliphist-vault";
           StateDirectoryMode = "0700";
           RuntimeDirectory = "cliphist-vault";
           RuntimeDirectoryMode = "0700";
-          RestrictAddressFamilies = [ "AF_UNIX" ];
-          LockPersonality = true;
-          MemoryDenyWriteExecute = true;
-
-          # The FUSE mount must be visible to the picker and watcher units, so
-          # this service cannot use mount-namespace hardening such as
-          # ProtectSystem, ProtectHome, or PrivateTmp. fusermount also relies
-          # on NixOS's privileged wrapper, which is incompatible with
-          # NoNewPrivileges.
         };
       };
 

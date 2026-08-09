@@ -1,102 +1,82 @@
 use std::env;
 use std::io::Write;
-use std::process::{Command, Stdio};
+use std::process::{Command, Output, Stdio};
 
 fn main() {
     let cliphist = env::var("CLIPHIST_BIN").unwrap_or_else(|_| "cliphist".into());
     let rofi = env::var("ROFI_BIN").unwrap_or_else(|_| "rofi".into());
     let wl_copy = env::var("WL_COPY_BIN").unwrap_or_else(|_| "wl-copy".into());
-    let wl_paste = env::var("WL_PASTE_BIN").unwrap_or_else(|_| "wl-paste".into());
     let zenity = env::var("ZENITY_BIN").unwrap_or_else(|_| "zenity".into());
 
-    let current_hash = get_clipboard_hash(&wl_paste);
-    let entries = get_marked_entries(&cliphist, &current_hash);
+    if let Err(error) = run(&cliphist, &rofi, &wl_copy, &zenity) {
+        eprintln!("clipboard-picker: {error}");
+        show_error(&zenity, &error);
+    }
+}
 
+fn run(cliphist: &str, rofi: &str, wl_copy: &str, zenity: &str) -> Result<(), String> {
+    let entries = get_entries(cliphist)?;
     if entries.is_empty() {
-        eprintln!("No clipboard history");
-        return;
+        show_empty(zenity);
+        return Ok(());
     }
 
-    let (selection, exit_code) = run_rofi(&rofi, &entries);
-
+    let (selection, exit_code) = run_rofi(rofi, &entries)?;
     if selection.is_empty() {
-        return;
+        return Ok(());
     }
-
-    let clean_entry = clean_marker(&selection);
 
     match exit_code {
-        0 => copy_entry(&cliphist, &wl_copy, &clean_entry),
-        10 => quick_edit(&cliphist, &wl_copy, &zenity, &clean_entry),
-        11 => delete_entry(&cliphist, &clean_entry),
-        _ => copy_entry(&cliphist, &wl_copy, &clean_entry),
+        0 => copy_entry(cliphist, wl_copy, &selection),
+        10 => quick_edit(cliphist, wl_copy, zenity, &selection),
+        11 => delete_entry(cliphist, &selection),
+        1 => Ok(()),
+        code => Err(format!(
+            "clipboard menu exited unexpectedly with status {code}"
+        )),
     }
 }
 
-fn get_clipboard_hash(wl_paste: &str) -> String {
-    Command::new(wl_paste)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .output()
-        .ok()
-        .map(|out| {
-            let content: String = String::from_utf8_lossy(&out.stdout)
-                .chars()
-                .take(1000)
-                .collect();
-            simple_hash(&content)
-        })
-        .unwrap_or_default()
-}
-
-fn simple_hash(s: &str) -> String {
-    let mut hash: u64 = 5381;
-    for c in s.bytes() {
-        hash = hash.wrapping_mul(33).wrapping_add(c as u64);
-    }
-    format!("{:x}", hash)
-}
-
-fn get_marked_entries(cliphist: &str, current_hash: &str) -> Vec<String> {
+fn get_entries(cliphist: &str) -> Result<Vec<String>, String> {
     let output = Command::new(cliphist)
         .arg("list")
         .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
         .output()
-        .expect("Failed to run cliphist list");
+        .map_err(|error| format!("failed to start encrypted clipboard history: {error}"))?;
+    require_success("load encrypted clipboard history", &output)?;
 
-    String::from_utf8_lossy(&output.stdout)
+    Ok(String::from_utf8_lossy(&output.stdout)
         .lines()
-        .map(|line| {
-            let decoded = decode_entry(cliphist, line);
-            let entry_hash = simple_hash(&decoded.chars().take(1000).collect::<String>());
-            if entry_hash == current_hash {
-                format!("► {}", line)
-            } else {
-                format!("  {}", line)
-            }
-        })
-        .collect()
+        .map(str::to_owned)
+        .collect())
 }
 
-fn decode_entry(cliphist: &str, entry: &str) -> String {
+fn decode_entry(cliphist: &str, entry: &str) -> Result<Vec<u8>, String> {
     let mut child = Command::new(cliphist)
         .arg("decode")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
         .spawn()
-        .expect("Failed to spawn cliphist decode");
+        .map_err(|error| format!("failed to start clipboard decryption: {error}"))?;
 
-    if let Some(mut stdin) = child.stdin.take() {
-        let _ = stdin.write_all(entry.as_bytes());
-    }
+    child
+        .stdin
+        .take()
+        .ok_or_else(|| "clipboard decryption stdin is unavailable".to_string())?
+        .write_all(entry.as_bytes())
+        .map_err(|error| format!("failed to select clipboard entry: {error}"))?;
 
-    let output = child.wait_with_output().expect("Failed to read output");
-    String::from_utf8_lossy(&output.stdout).to_string()
+    let output = child
+        .wait_with_output()
+        .map_err(|error| format!("failed to read decrypted clipboard entry: {error}"))?;
+    require_success("decrypt clipboard entry", &output)?;
+    Ok(output.stdout)
 }
 
-fn run_rofi(rofi: &str, entries: &[String]) -> (String, i32) {
+fn run_rofi(rofi: &str, entries: &[String]) -> Result<(String, i32), String> {
     let input = entries.join("\n");
-
     let mut child = Command::new(rofi)
         .args([
             "-dmenu",
@@ -114,47 +94,53 @@ fn run_rofi(rofi: &str, entries: &[String]) -> (String, i32) {
         ])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
         .spawn()
-        .expect("Failed to spawn rofi");
+        .map_err(|error| format!("failed to open clipboard menu: {error}"))?;
 
-    if let Some(mut stdin) = child.stdin.take() {
-        let _ = stdin.write_all(input.as_bytes());
-    }
+    child
+        .stdin
+        .take()
+        .ok_or_else(|| "clipboard menu stdin is unavailable".to_string())?
+        .write_all(input.as_bytes())
+        .map_err(|error| format!("failed to populate clipboard menu: {error}"))?;
 
     let output = child
         .wait_with_output()
-        .expect("Failed to read rofi output");
+        .map_err(|error| format!("failed to read clipboard menu selection: {error}"))?;
     let exit_code = output.status.code().unwrap_or(1);
     let selection = String::from_utf8_lossy(&output.stdout).trim().to_string();
-
-    (selection, exit_code)
+    Ok((selection, exit_code))
 }
 
-fn clean_marker(entry: &str) -> String {
-    entry
-        .trim_start_matches("► ")
-        .trim_start_matches("  ")
-        .to_string()
+fn copy_entry(cliphist: &str, wl_copy: &str, entry: &str) -> Result<(), String> {
+    let decoded = decode_entry(cliphist, entry)?;
+    copy_bytes(wl_copy, &decoded)
 }
 
-fn copy_entry(cliphist: &str, wl_copy: &str, entry: &str) {
-    let decoded = decode_entry(cliphist, entry);
-
+fn copy_bytes(wl_copy: &str, content: &[u8]) -> Result<(), String> {
     let mut child = Command::new(wl_copy)
         .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
         .spawn()
-        .expect("Failed to spawn wl-copy");
+        .map_err(|error| format!("failed to start wl-copy: {error}"))?;
 
-    if let Some(mut stdin) = child.stdin.take() {
-        let _ = stdin.write_all(decoded.as_bytes());
-    }
+    child
+        .stdin
+        .take()
+        .ok_or_else(|| "wl-copy stdin is unavailable".to_string())?
+        .write_all(content)
+        .map_err(|error| format!("failed to write clipboard content: {error}"))?;
 
-    let _ = child.wait();
+    let output = child
+        .wait_with_output()
+        .map_err(|error| format!("failed to finish copying clipboard content: {error}"))?;
+    require_success("copy clipboard entry", &output)
 }
 
-fn quick_edit(cliphist: &str, wl_copy: &str, zenity: &str, entry: &str) {
-    let content = decode_entry(cliphist, entry);
-
+fn quick_edit(cliphist: &str, wl_copy: &str, zenity: &str, entry: &str) -> Result<(), String> {
+    let content = decode_entry(cliphist, entry)?;
     let mut child = Command::new(zenity)
         .args([
             "--text-info",
@@ -166,42 +152,78 @@ fn quick_edit(cliphist: &str, wl_copy: &str, zenity: &str, entry: &str) {
         ])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
         .spawn()
-        .expect("Failed to spawn zenity");
+        .map_err(|error| format!("failed to open clipboard editor: {error}"))?;
 
-    if let Some(mut stdin) = child.stdin.take() {
-        let _ = stdin.write_all(content.as_bytes());
-    }
+    child
+        .stdin
+        .take()
+        .ok_or_else(|| "clipboard editor stdin is unavailable".to_string())?
+        .write_all(&content)
+        .map_err(|error| format!("failed to populate clipboard editor: {error}"))?;
 
     let output = child
         .wait_with_output()
-        .expect("Failed to read zenity output");
-    let edited = String::from_utf8_lossy(&output.stdout);
-
-    if !edited.is_empty() {
-        let mut copy_child = Command::new(wl_copy)
-            .stdin(Stdio::piped())
-            .spawn()
-            .expect("Failed to spawn wl-copy");
-
-        if let Some(mut stdin) = copy_child.stdin.take() {
-            let _ = stdin.write_all(edited.as_bytes());
-        }
-
-        let _ = copy_child.wait();
+        .map_err(|error| format!("failed to read clipboard editor: {error}"))?;
+    if output.status.success() && !output.stdout.is_empty() {
+        copy_bytes(wl_copy, &output.stdout)?;
+    } else if output.status.code() != Some(1) && !output.status.success() {
+        require_success("edit clipboard entry", &output)?;
     }
+    Ok(())
 }
 
-fn delete_entry(cliphist: &str, entry: &str) {
+fn delete_entry(cliphist: &str, entry: &str) -> Result<(), String> {
     let mut child = Command::new(cliphist)
         .arg("delete")
         .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
         .spawn()
-        .expect("Failed to spawn cliphist delete");
+        .map_err(|error| format!("failed to start clipboard deletion: {error}"))?;
 
-    if let Some(mut stdin) = child.stdin.take() {
-        let _ = stdin.write_all(entry.as_bytes());
+    child
+        .stdin
+        .take()
+        .ok_or_else(|| "clipboard deletion stdin is unavailable".to_string())?
+        .write_all(entry.as_bytes())
+        .map_err(|error| format!("failed to select clipboard entry for deletion: {error}"))?;
+
+    let output = child
+        .wait_with_output()
+        .map_err(|error| format!("failed to finish clipboard deletion: {error}"))?;
+    require_success("delete clipboard entry", &output)
+}
+
+fn require_success(action: &str, output: &Output) -> Result<(), String> {
+    if output.status.success() {
+        return Ok(());
     }
+    let detail = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    if detail.is_empty() {
+        Err(format!(
+            "failed to {action} (status {})",
+            output.status.code().unwrap_or(1)
+        ))
+    } else {
+        Err(format!("failed to {action}: {detail}"))
+    }
+}
 
-    let _ = child.wait();
+fn show_empty(zenity: &str) {
+    let _ = Command::new(zenity)
+        .args([
+            "--info",
+            "--title=Clipboard History",
+            "--text=Clipboard history is empty.",
+        ])
+        .status();
+}
+
+fn show_error(zenity: &str, message: &str) {
+    let _ = Command::new(zenity)
+        .args(["--error", "--title=Clipboard History Error"])
+        .arg(format!("--text={message}"))
+        .status();
 }
