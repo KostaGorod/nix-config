@@ -15,6 +15,45 @@ to that user; program defaults that use NixOS's global `programs.*` options rema
 system-wide. Spotify is patched with SpotX, and wl-clipboard includes
 sensitive-clipboard support for password managers.
 
+## Updating dependency pins
+
+Check the latest Orca release metadata without downloading the AppImage or
+changing the repository:
+
+```sh
+scripts/update-orca-ide.sh --check
+scripts/update-orca-ide.sh --check --json
+```
+
+Prepare a private `flake.lock` candidate and report available updates without
+changing tracked files:
+
+```sh
+scripts/update-pins.sh --check
+scripts/update-pins.sh --check --json
+```
+
+After reviewing the exact Orca version and GitHub API digest reported by
+`--check`, apply both pins together from a completely clean worktree:
+
+```sh
+scripts/update-pins.sh --apply \
+  --orca-version 1.4.179 \
+  --orca-asset-digest sha256:078084856db66d29b26b5760b88028de95affcd771431359eee36924297b10df
+```
+
+The scripts validate exact release and asset metadata, use fixed-output hashes,
+and refuse same-version, downgrade, malformed, mismatched, or dirty-worktree
+updates. GitHub release digests establish integrity but do not independently
+authenticate unsigned upstream releases, so review the release and diff before
+merging.
+
+`.github/workflows/update-pins.yml` checks weekly and can be started manually in
+dry-run mode. It opens or refreshes a dedicated bot pull request only when a
+reviewable diff exists. Regular pull-request CI validates the change; updating
+pins is deliberately separate from rebuilding, switching, restarting, or
+deploying the host.
+
 ## Deploy
 
 ```sh

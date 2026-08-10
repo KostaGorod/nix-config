@@ -1,0 +1,148 @@
+name: Update Dependency Pins
+
+on:
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Resolve and show the update diff without opening a pull request
+        type: boolean
+        required: true
+        default: true
+
+concurrency:
+  group: update-dependency-pins
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-pins:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+
+      - uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      - name: Validate updater syntax
+        run: bash -n scripts/update-orca-ide.sh scripts/update-pins.sh
+
+      - name: Resolve reviewed Orca metadata
+        id: orca
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          scripts/update-orca-ide.sh --check --json >"${RUNNER_TEMP}/orca-check.json"
+          jq -e '.schema == 1 and .mode == "check"' "${RUNNER_TEMP}/orca-check.json" >/dev/null
+          {
+            printf 'available=%s\n' "$(jq -r '.available' "${RUNNER_TEMP}/orca-check.json")"
+            printf 'old_version=%s\n' "$(jq -r '.current.version' "${RUNNER_TEMP}/orca-check.json")"
+            printf 'new_version=%s\n' "$(jq -r '.candidate.version' "${RUNNER_TEMP}/orca-check.json")"
+            printf 'release_url=%s\n' "$(jq -r '.candidate.release_url' "${RUNNER_TEMP}/orca-check.json")"
+            printf 'asset_digest=%s\n' "$(jq -r '.candidate.api_digest' "${RUNNER_TEMP}/orca-check.json")"
+          } >>"${GITHUB_OUTPUT}"
+
+      - name: Prepare reviewed pin update
+        id: update
+        env:
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
+          GITHUB_TOKEN: ${{ github.token }}
+          ORCA_AVAILABLE: ${{ steps.orca.outputs.available }}
+          ORCA_OLD_VERSION: ${{ steps.orca.outputs.old_version }}
+          ORCA_NEW_VERSION: ${{ steps.orca.outputs.new_version }}
+          ORCA_RELEASE_URL: ${{ steps.orca.outputs.release_url }}
+          ORCA_ASSET_DIGEST: ${{ steps.orca.outputs.asset_digest }}
+        run: |
+          set -Eeuo pipefail
+          args=(--apply --json)
+          if [[ "${ORCA_AVAILABLE}" == true ]]; then
+            args+=(--orca-version "${ORCA_NEW_VERSION}" --orca-asset-digest "${ORCA_ASSET_DIGEST}")
+          fi
+
+          scripts/update-pins.sh "${args[@]}" >"${RUNNER_TEMP}/update-pins.json"
+          jq -e '.schema == 1 and .mode == "apply"' "${RUNNER_TEMP}/update-pins.json" >/dev/null
+
+          mapfile -t changed < <(git diff --name-only --)
+          for path in "${changed[@]}"; do
+            case "${path}" in
+              flake.lock|packages/orca-ide/default.nix) ;;
+              *) printf 'Unexpected changed path: %s\n' "${path}" >&2; exit 1 ;;
+            esac
+          done
+          git diff --check
+
+          has_changes=false
+          if ! git diff --quiet --; then has_changes=true; fi
+          {
+            printf 'has_changes=%s\n' "${has_changes}"
+            printf 'dry_run=%s\n' "${DRY_RUN}"
+          } >>"${GITHUB_OUTPUT}"
+
+          warning="$(jq -r '.orca.check.provenance_warning' "${RUNNER_TEMP}/update-pins.json")"
+          printf '%s\n' '### Dependency pin update' >>"${GITHUB_STEP_SUMMARY}"
+          printf '%s\n' '' "- Dry run: \`${DRY_RUN}\`" \
+            "- Orca: \`${ORCA_OLD_VERSION}\` → \`${ORCA_NEW_VERSION}\`" \
+            "- Release: ${ORCA_RELEASE_URL}" \
+            "- Asset digest: \`${ORCA_ASSET_DIGEST}\`" \
+            "- Warning: ${warning}" '' '```diff' >>"${GITHUB_STEP_SUMMARY}"
+          git diff -- >>"${GITHUB_STEP_SUMMARY}"
+          printf '%s\n' '```' >>"${GITHUB_STEP_SUMMARY}"
+          git diff --
+
+      - name: No update required
+        if: steps.update.outputs.has_changes != 'true'
+        run: printf '%s\n' 'No dependency pin changes were resolved.'
+
+      - name: Create or refresh update pull request
+        if: steps.update.outputs.has_changes == 'true' && steps.update.outputs.dry_run != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE_BRANCH: ${{ github.event.repository.default_branch }}
+          UPDATE_BRANCH: automation/update-dependency-pins
+          ORCA_OLD_VERSION: ${{ steps.orca.outputs.old_version }}
+          ORCA_NEW_VERSION: ${{ steps.orca.outputs.new_version }}
+          ORCA_RELEASE_URL: ${{ steps.orca.outputs.release_url }}
+          ORCA_ASSET_DIGEST: ${{ steps.orca.outputs.asset_digest }}
+        run: |
+          set -Eeuo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- flake.lock packages/orca-ide/default.nix
+          git commit -m 'chore: update dependency pins'
+
+          remote_sha="$(git ls-remote --heads origin "refs/heads/${UPDATE_BRANCH}" | cut -f1)"
+          if [[ -n "${remote_sha}" ]]; then
+            git push --force-with-lease="refs/heads/${UPDATE_BRANCH}:${remote_sha}" \
+              origin "HEAD:refs/heads/${UPDATE_BRANCH}"
+          else
+            git push origin "HEAD:refs/heads/${UPDATE_BRANCH}"
+          fi
+
+          body_file="${RUNNER_TEMP}/update-pins-pr.md"
+          {
+            printf '%s\n' '## Automated dependency pin update' ''
+            printf '%s\n' "- Orca: \`${ORCA_OLD_VERSION}\` → \`${ORCA_NEW_VERSION}\`"
+            printf '%s\n' "- Release: ${ORCA_RELEASE_URL}"
+            printf '%s\n' "- AppImage API digest: \`${ORCA_ASSET_DIGEST}\`" ''
+            printf '%s\n' '**Provenance warning:** GitHub release digests and Nix fixed-output hashes protect integrity and reproducibility, but the Orca release is not independently authenticated by a publisher signature.' ''
+            printf '%s\n' 'Regular pull-request CI must validate this change. This workflow does not build, switch, restart, deploy, or merge the system.'
+          } >"${body_file}"
+
+          pr_number="$(gh pr list --state open --base "${BASE_BRANCH}" --head "${UPDATE_BRANCH}" \
+            --json number --jq '.[0].number // empty')"
+          if [[ -n "${pr_number}" ]]; then
+            gh pr edit "${pr_number}" --title 'chore: update dependency pins' --body-file "${body_file}"
+          else
+            gh pr create --base "${BASE_BRANCH}" --head "${UPDATE_BRANCH}" \
+              --title 'chore: update dependency pins' --body-file "${body_file}"
+          fi
