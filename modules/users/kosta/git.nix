@@ -12,6 +12,15 @@
 
         [credential]
           helper = ${git}/bin/git-credential-libsecret
+          helper = ${pkgs.git-credential-oauth}/bin/git-credential-oauth
+
+        [credential "https://gist.github.com"]
+          helper = ""
+          helper = ${pkgs-unstable.gh}/bin/gh auth git-credential
+
+        [credential "https://github.com"]
+          helper = ""
+          helper = ${pkgs-unstable.gh}/bin/gh auth git-credential
 
         [core]
           editor = hx
@@ -23,8 +32,16 @@
     in
     {
       systemd.tmpfiles.rules = [ "L+ /home/kosta/.gitconfig - kosta users - ${gitConfig}" ];
+      environment.etc."xdg/gh/config.yml".text = ''
+        aliases: {}
+        editor: ""
+        git_protocol: https
+        version: '1'
+      '';
 
-      # GitHub CLI
-      users.users.kosta.packages = [ pkgs-unstable.gh ];
+      users.users.kosta.packages = [
+        pkgs.git-credential-oauth
+        pkgs-unstable.gh
+      ];
     };
 }

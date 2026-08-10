@@ -26,22 +26,27 @@ _: {
         // Disable "save password" infobar completely
         user_pref("signon.rememberSignons.visibilityToggle", false);
       '';
+      userJsFile = pkgs.writeText "zen-user.js" userJsContent;
     in
     {
       systemd.services.zen-browser-config = {
         description = "Zen Browser config for password manager";
         after = [ "local-fs.target" ];
         wantedBy = [ "multi-user.target" ];
+        restartIfChanged = true;
         serviceConfig = {
           Type = "oneshot";
           RemainAfterExit = true;
           User = "kosta";
           Group = "users";
           ExecStart = "${pkgs.writeShellScriptBin "zen-browser-config" ''
-                    mkdir -p "/home/kosta/.zen/qodg0ptz.Default Profile"
-                    cat > "/home/kosta/.zen/qodg0ptz.Default Profile/user.js" << 'EOF'
-            ${userJsContent}
-            EOF
+            target="/home/kosta/.zen/qodg0ptz.Default Profile/user.js"
+            ${pkgs.coreutils}/bin/mkdir -p "/home/kosta/.zen/qodg0ptz.Default Profile"
+            if [ -L "$target" ]; then
+              echo "refusing to replace symlink: $target" >&2
+              exit 1
+            fi
+            ${pkgs.coreutils}/bin/install -m 0644 "${userJsFile}" "$target"
           ''}/bin/zen-browser-config";
         };
       };

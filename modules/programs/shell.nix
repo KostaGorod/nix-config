@@ -1,11 +1,22 @@
 # Workstation shell defaults
 # Bash, starship, direnv, carapace
 _: {
-  nixos.modules.workstation = _: {
+  nixos.modules.workstation = { pkgs, ... }: {
+    environment.localBinInPath = true;
+
     # Bash
     programs.bash = {
       enable = true;
       completion.enable = true;
+      shellInit = ''
+        export PATH="$PATH:$HOME/bin"
+      '';
+      interactiveShellInit = ''
+        HISTFILESIZE=100000
+        HISTSIZE=10000
+        shopt -s histappend extglob globstar checkjobs
+        source <(${pkgs.carapace}/bin/carapace _carapace bash)
+      '';
       shellAliases = {
         l = "ls";
         ll = "ls -la";
@@ -31,6 +42,5 @@ _: {
       };
     };
 
-    # Carapace not available in NixOS - use regular bash completion
   };
 }
