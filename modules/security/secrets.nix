@@ -13,6 +13,7 @@ _: {
       age.secrets = {
         voyage-api-key = {
           file = ../../secrets/voyage-api-key.age;
+          path = "/run/secrets/voyage-api-key";
           owner = "mem0";
           group = "mem0";
           mode = "0400";
@@ -20,6 +21,7 @@ _: {
 
         anthropic-api-key = {
           file = ../../secrets/anthropic-api-key.age;
+          path = "/run/secrets/anthropic-api-key";
           owner = "mem0";
           group = "mem0";
           mode = "0400";
