@@ -83,11 +83,10 @@ _: {
       # Some OnlyOffice builds don't fully rely on system fontconfig and instead
       # scan an app-local fonts directory for the font picker + spreadsheet grid.
       systemd.user.services.onlyoffice-fonts = {
-        Unit = {
-          Description = "Sync Hebrew-capable fonts for OnlyOffice";
-          After = [ "graphical-session-pre.target" ];
-        };
-        Service = {
+        description = "Sync Hebrew-capable fonts for OnlyOffice";
+        after = [ "graphical-session-pre.target" ];
+        wantedBy = [ "default.target" ];
+        serviceConfig = {
           Type = "oneshot";
           ExecStart = pkgs.writeShellScript "onlyoffice-fonts" ''
             set -euo pipefail
@@ -105,9 +104,6 @@ _: {
             # Refresh user font cache (helps other apps too)
             ${pkgs.fontconfig}/bin/fc-cache -f >/dev/null 2>&1 || true
           '';
-        };
-        Install = {
-          WantedBy = [ "default.target" ];
         };
       };
     };
