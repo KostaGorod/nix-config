@@ -19,7 +19,7 @@ appimageTools.wrapType2 rec {
     install -m 444 -D ${appimageContents}/orca-ide.desktop $out/share/applications/orca-ide.desktop
     install -m 444 -D ${appimageContents}/orca-ide.png $out/share/icons/hicolor/512x512/apps/orca-ide.png
     substituteInPlace $out/share/applications/orca-ide.desktop \
-      --replace-fail 'Exec=AppRun' 'Exec=orca-ide'
+      --replace-fail 'Exec=AppRun' "Exec=$out/bin/orca-ide"
   '';
 
   meta = {
