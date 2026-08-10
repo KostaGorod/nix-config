@@ -21,6 +21,41 @@ sensitive-clipboard support for password managers.
 sudo nixos-rebuild switch --flake .#rocinante
 ```
 
+## Secrets quick start
+
+1. Add the new encrypted file and its allowed public-key recipients to
+   `secrets.nix`:
+   ```nix
+   "secrets/my-api-key.age".publicKeys = hosts ++ [
+     "ssh-ed25519 AAAA... operator"
+   ];
+   ```
+2. Create or edit it using a private key whose public key is in that recipient
+   list:
+   ```sh
+   nix run github:ryantm/agenix -- \
+     -e secrets/my-api-key.age \
+     -i ~/.ssh/id_ed25519_secrets_management
+   ```
+3. Declare its runtime path and the account allowed to read it in an active
+   dendritic module, such as `modules/security/secrets.nix`:
+   ```nix
+   age.secrets.my-api-key = {
+     file = ../../secrets/my-api-key.age;
+     path = "/run/secrets/my-api-key";
+     owner = "my-app";
+     group = "my-app";
+     mode = "0400";
+   };
+   ```
+4. Give the application the path, not the plaintext value:
+   ```nix
+   services.my-app.apiKeyFile = config.age.secrets.my-api-key.path;
+   ```
+
+See [`docs/SECRETS.md`](docs/SECRETS.md) for complete recipient, permission,
+systemd credential, rekeying, and verification examples.
+
 See [`modules/hosts/rocinante/README.md`](modules/hosts/rocinante/README.md) for hardware
 details and first-time bootstrap, [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 for the design, and [`docs/SECRETS.md`](docs/SECRETS.md) for the agenix
@@ -33,7 +68,7 @@ workflow.
 | `flake.nix`          | Inputs and the minimal dendritic `import-tree` entry point      |
 | `modules/framework/` | Typed deferred-module framework, checks, and formatting         |
 | `modules/hosts/`     | Host composition and machine-specific contributions            |
-| `modules/users/`     | User-scoped packages and Git configuration                      |
+| `modules/users/`     | User-scoped packages, configuration, and migrations             |
 | `modules/{concern}/` | Auto-imported feature contributions grouped by concern          |
 | `overlays/`          | Package overlays retained for reuse, outside the import tree    |
 | `packages/`          | Locally built package functions, outside the import tree        |
