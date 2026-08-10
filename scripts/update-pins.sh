@@ -37,9 +37,9 @@ log() { printf 'update-pins: %s\n' "$*" >&2; }
 die() { log "error: $*"; exit 1; }
 
 sha256_file() {
-  local digest rest
-  read -r digest rest < <(sha256sum -- "$1")
-  printf '%s\n' "${digest}"
+  local digest
+  digest="$(sha256sum -- "$1")"
+  printf '%s\n' "${digest%% *}"
 }
 
 restore_if_unchanged() {
