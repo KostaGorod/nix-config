@@ -1,5 +1,5 @@
 _: {
-  nixos.modules.workstation = _: {
+  nixos.modules.workstation = { pkgs, ... }: {
     services = {
       displayManager.sddm.enable = false;
       displayManager.sddm.wayland.enable = false;
@@ -7,6 +7,8 @@ _: {
       desktopManager.plasma6.enable = true;
       desktopManager.plasma6.enableQt5Integration = true; # disable for qt6 full version;
     };
+
+    environment.systemPackages = [ pkgs.kdePackages.plasma-workspace ];
 
     # programs.dconf.enable = true; # for GNOME, currently using KDE
   };
