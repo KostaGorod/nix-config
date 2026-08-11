@@ -34,3 +34,6 @@ __pycache__/
 
 # Local planning scratch
 .sisyphus/
+
+# Local Memvid indexes
+.memvid/

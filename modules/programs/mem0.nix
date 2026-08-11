@@ -79,6 +79,20 @@
           description = "Open firewall port for Mem0 service";
         };
 
+        qdrant = {
+          host = lib.mkOption {
+            type = lib.types.str;
+            default = "127.0.0.1";
+            description = "Qdrant host";
+          };
+
+          port = lib.mkOption {
+            type = lib.types.port;
+            default = 6333;
+            description = "Qdrant HTTP port";
+          };
+        };
+
         # Embedder configuration
         embedder = {
           provider = lib.mkOption {
@@ -175,7 +189,6 @@
 
           systemd.tmpfiles.rules = [
             "d ${svcCfg.dataDir} 0750 mem0 mem0 -"
-            "d ${svcCfg.dataDir}/qdrant 0750 mem0 mem0 -"
             "d ${svcCfg.dataDir}/.cache 0750 mem0 mem0 -"
             "d ${svcCfg.dataDir}/.cache/uv 0750 mem0 mem0 -"
           ];
@@ -184,7 +197,11 @@
           systemd.services.mem0 = {
             description = "Mem0 AI Memory MCP Server";
             wantedBy = [ "multi-user.target" ];
-            after = [ "network.target" ];
+            after = [
+              "network.target"
+            ]
+            ++ lib.optionals config.services.qdrant.enable [ "qdrant.service" ];
+            wants = lib.optionals config.services.qdrant.enable [ "qdrant.service" ];
 
             environment = {
               MEM0_DATA_DIR = svcCfg.dataDir;
@@ -194,7 +211,8 @@
               MEM0_EMBEDDER_MODEL = svcCfg.embedder.model;
               MEM0_LLM_PROVIDER = svcCfg.llm.provider;
               MEM0_LLM_MODEL = svcCfg.llm.model;
-              MEM0_QDRANT_PATH = "${svcCfg.dataDir}/qdrant";
+              MEM0_QDRANT_HOST = svcCfg.qdrant.host;
+              MEM0_QDRANT_PORT = toString svcCfg.qdrant.port;
               MEM0_TELEMETRY = "false";
               ANONYMIZED_TELEMETRY = "false";
             };

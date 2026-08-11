@@ -67,11 +67,11 @@ Package functions in `packages/`, standalone flakes in `flakes/`, overlays in
 auto-import tree. Encrypted secret payloads remain in `secrets/*.age` and are
 decrypted only into `/run/secrets` at activation.
 
-The optional legacy Qdrant fragment remains inert as the excluded
-`_qdrant.nix` file. The rocinante host enables the workstation tools and
-services it currently uses, including PipeWire with 32-bit ALSA support,
-Tailscale, TeamViewer, and direnv with nix-direnv. Both the Mem0 wrapper and
-persistent Mem0 service are disabled.
+The native NixOS `services.qdrant` option is available but disabled. The
+rocinante host enables the workstation tools and services it currently uses,
+including PipeWire with 32-bit ALSA support, Tailscale, TeamViewer, and direnv
+with nix-direnv. Both the Mem0 wrapper and persistent Mem0 service are
+disabled.
 
 The single broad `workstation` module matches the current one-host topology. If
 a server or other non-workstation host is added, introduce a broad `base`
