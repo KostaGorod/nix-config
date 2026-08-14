@@ -82,7 +82,7 @@ _: {
             remove_legacy_link "$home/.zen/qodg0ptz.Default Profile/user.js" ".zen/qodg0ptz.Default Profile/user.js"
 
             migrate_legacy_link "$home/.config/Code/User/settings.json" ".config/Code/User/settings.json" "/etc/xdg/Code/User/settings.json"
-            migrate_legacy_link "$home/.config/gh/config.yml" ".config/gh/config.yml" "/etc/xdg/gh/config.yml"
+            remove_legacy_link "$home/.config/gh/config.yml" ".config/gh/config.yml"
 
             remove_legacy_link "$home/.vscode/extensions/.extensions-immutable.json" ".vscode/extensions/.extensions-immutable.json"
             remove_legacy_link "$home/.vscode/extensions/MS-python.vscode-pylance" ".vscode/extensions/MS-python.vscode-pylance"

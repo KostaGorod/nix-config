@@ -15,7 +15,6 @@
       users.users.kosta.packages = with pkgs; [
         # IDEs & Editors
         pkgs-unstable.zed-editor
-        pkgs.helix
         orca-ide
         pkgs-unstable.herdr
         # code-cursor
@@ -67,15 +66,11 @@
 
         # Desktop integration
         cosmic-ext-applet-caffeine
-        kdePackages.plasma-browser-integration
 
         # Media
         obs-studio
         kdePackages.dragon
         deluge-gtk
-
-        # System info
-        pciutils
 
         # Browsers (unstable)
         pkgs-unstable.chromium
