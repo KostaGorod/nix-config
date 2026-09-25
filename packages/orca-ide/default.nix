@@ -15,6 +15,15 @@ in
 appimageTools.wrapType2 rec {
   inherit pname version src;
 
+  # The computer-use sidecar invokes python3 inside the AppImage FHS sandbox.
+  # Keep the downloaded AppImage unchanged and add only the missing runtime.
+  extraPkgs = pkgs: [
+    pkgs.python3
+    pkgs.python3Packages.pygobject3
+    pkgs.gobject-introspection
+    pkgs.at-spi2-core
+  ];
+
   extraInstallCommands = ''
     install -m 444 -D ${appimageContents}/orca-ide.desktop $out/share/applications/orca-ide.desktop
     install -m 444 -D ${appimageContents}/orca-ide.png $out/share/icons/hicolor/512x512/apps/orca-ide.png

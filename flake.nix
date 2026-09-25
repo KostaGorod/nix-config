@@ -29,6 +29,8 @@
 
     llm-agents.url = "github:numtide/llm-agents.nix";
 
+    hermes-agent.url = "github:NousResearch/hermes-agent";
+
     antigravity = {
       url = "github:jacopone/antigravity-nix";
       inputs.nixpkgs.follows = "nixpkgs";

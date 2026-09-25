@@ -3,14 +3,14 @@
 _: {
   nixos.configurations.rocinante.module =
     { config, lib, ... }:
-    lib.mkIf config.services.mem0.enable {
+    {
       # Age identities for decryption
       age.identityPaths = [
         "/etc/ssh/ssh_host_ed25519_key"
         "/home/kosta/.ssh/id_ed25519_secrets_management"
       ];
 
-      age.secrets = {
+      age.secrets = lib.optionalAttrs config.services.mem0.enable {
         voyage-api-key = {
           file = ../../secrets/voyage-api-key.age;
           path = "/run/secrets/voyage-api-key";
