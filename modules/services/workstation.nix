@@ -62,14 +62,14 @@ _: {
     services.tlp.settings = {
       CPU_SCALING_GOVERNOR_ON_AC = lib.mkDefault "performance";
       CPU_SCALING_GOVERNOR_ON_BAT = lib.mkDefault "powersave";
-      CPU_ENERGY_PERF_POLICY_ON_BAT = lib.mkDefault "power";
+      CPU_ENERGY_PERF_POLICY_ON_BAT = lib.mkDefault "balance_power";
       CPU_ENERGY_PERF_POLICY_ON_AC = lib.mkDefault "performance";
       PLATFORM_PROFILE_ON_AC = lib.mkDefault "performance";
-      PLATFORM_PROFILE_ON_BAT = lib.mkDefault "low-power";
+      PLATFORM_PROFILE_ON_BAT = lib.mkDefault "balanced";
       CPU_MIN_PERF_ON_AC = lib.mkDefault 0;
       CPU_MAX_PERF_ON_AC = lib.mkDefault 100;
       CPU_MIN_PERF_ON_BAT = lib.mkDefault 0;
-      CPU_MAX_PERF_ON_BAT = lib.mkDefault 20;
+      CPU_MAX_PERF_ON_BAT = lib.mkDefault 60;
       START_CHARGE_THRESH_BAT0 = lib.mkDefault 40;
       STOP_CHARGE_THRESH_BAT0 = lib.mkDefault 80;
       RUNTIME_PM_ON_AC = lib.mkDefault "on";

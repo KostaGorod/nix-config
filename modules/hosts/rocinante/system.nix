@@ -112,6 +112,13 @@
       };
 
       # System settings
+      zramSwap = {
+        enable = true;
+        memoryPercent = 50;
+        priority = 100;
+        algorithm = "zstd";
+      };
+      boot.kernel.sysctl."vm.swappiness" = 20;
       systemd.targets.hibernate.enable = false;
       programs.fish.enable = true;
       environment.etc.current-nixos-config.source = ./.;
