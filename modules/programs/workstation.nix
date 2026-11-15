@@ -6,6 +6,7 @@ _: {
     # Enable AI tools
     programs.opencode.enable = true;
     programs.claude-code.enable = true;
+    programs.codex.enable = true;
     programs.droids.enable = true;
     programs.bitwarden.enable = true;
 
