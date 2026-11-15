@@ -10,7 +10,6 @@
         config.allowUnfree = true;
       };
       orca-ide = pkgs.callPackage ../../../packages/orca-ide { };
-      hermes-agent = pkgs.callPackage ../../../packages/hermes-agent { };
       buzz-desktop = pkgs.callPackage ../../../packages/buzz-desktop { };
     in
     {
@@ -18,8 +17,6 @@
         # IDEs & Editors
         pkgs-unstable.zed-editor
         orca-ide
-        hermes-agent
-        inputs.hermes-agent.packages.${pkgs.stdenv.hostPlatform.system}.desktop
         buzz-desktop
         pkgs-unstable.herdr
         # code-cursor
