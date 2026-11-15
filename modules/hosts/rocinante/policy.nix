@@ -11,6 +11,7 @@ _: {
     {
 
       services.tailscale-mesh.enable = true;
+      virtualisation.libvirt.enable = true;
 
       # Binary caches (cosmic, numtide); base Nix settings are in system.nix.
       nix.settings = {
